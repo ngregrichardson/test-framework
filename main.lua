@@ -1,4 +1,4 @@
-testing = RegisterMod("Testing Framework", 1)
+TestingMod = RegisterMod("Testing Framework", 1)
 
 function table.deepCopy(original)
 	local copy = {}
@@ -92,7 +92,7 @@ local usePillCard = function(next)
     delay(0, next)
 end
 
-testing:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
+TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
     if entity ~= nil then
         if inputHook == InputHook.GET_ACTION_VALUE then
             if buttonAction == ButtonAction.ACTION_LEFT then
@@ -120,7 +120,7 @@ testing:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook,
     end
 end)
 
-testing:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     shouldActions.left.frames = math.max(0, shouldActions.left.frames - 1)
     if shouldActions.left.frames <= 0 then
         shouldActions.left.speed = 0
@@ -150,7 +150,7 @@ testing:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     end
 end)
 
-testing:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
+TestingMod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinued)
     if not isContinued then
         stop()
     end
