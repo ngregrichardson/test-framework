@@ -45,8 +45,12 @@ local stop = function()
     delayConfig = table.deepCopy(initialDelayConfig)
 end
 
-local delay = function(seconds, callback)
-    delayConfig.frames = seconds * 30
+local delay = function(value, callback, inFrames)
+    if inFrames then
+        delayConfig.frames = value
+    else
+        delayConfig.frames = value * 30
+    end
     if callback then
         delayConfig.next = callback
     else
@@ -87,9 +91,18 @@ local runCommand = function(command, next)
     delay(0, next)
 end
 
-local usePillCard = function(next)
-    shouldActions.pillCard = true
+local giveCard = function(id, next)
+    Isaac.ExecuteCommand("g k"..id)
     delay(0, next)
+end
+
+local usePillCard = function(waitForAnimation, next)
+    shouldActions.pillCard = true
+    local delayFrames = 0
+    if waitForAnimation then
+       delayFrames = 13
+    end
+    delay(delayFrames, next, true)
 end
 
 TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
@@ -157,8 +170,10 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, isContinue
     moveRight(2, 1, function()
         moveLeft(2, 0.5, function()
             moveUp(2, 0.5, function()
-                runCommand("g k1", function()
-                    usePillCard()
+                giveCard(2, function()
+                    usePillCard(true, function()
+                        moveLeft(2, 1)
+                    end)
                 end)
             end)
         end)
