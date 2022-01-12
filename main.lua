@@ -466,12 +466,3 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
         end
     end
 end)
-
-Test.RegisterTests("lootdeck", {
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 126
-        }
-    }
-})
