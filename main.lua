@@ -11,6 +11,40 @@ function table.deepCopy(original)
 	return copy
 end
 
+local function FindEntryByProperties(t, props)
+    local found
+	for _, item in pairs(t) do
+	    local foundAll = true
+	    for key, value in pairs(props) do
+            if item[key] ~= value then
+                foundAll = false
+                break
+            end
+        end
+        
+        if foundAll then
+            found = item
+            break
+        end
+    end
+    
+    return found
+end
+
+local function RemoveElement(t, element)
+    local indexOf
+
+    for i, v in ipairs(t) do
+        if v == element then
+            indexOf = i
+        end
+    end
+
+    if indexOf then
+        table.remove(t, indexOf)
+    end
+end
+
 local registeredTests = {}
 
 Test = {}
@@ -43,61 +77,19 @@ function Test.RegisterTests(name, tests)
     registeredTests[name] = tests
 end
 
-local initialShouldActions = {
-    left = {
-        frames = 0,
-        speed = 0,
-        playerIndex = 0
-    },
-    right = {
-        frames = 0,
-        speed = 0,
-        playerIndex = 0
-    },
-    up = {
-        frames = 0,
-        speed = 0,
-        playerIndex = 0
-    },
-    down = {
-        frames = 0,
-        speed = 0,
-        playerIndex = 0
-    },
-    shootLeft = {
-        frames = 0
-    },
-    shootRight = {
-        frames = 0
-    },
-    shootUp = {
-        frames = 0
-    },
-    shootDown = {
-        frames = 0
-    },
-    pillCard = false,
-    bomb = false,
-    item = false,
-    drop = {
-        frames = 0
-    },
-    waitForKey = nil
-}
-
 local initialDelayConfig = {
     frames = 0,
     next = nil
 }
 
-local shouldActions = table.deepCopy(initialShouldActions)
+local shouldActions = {}
 
 local delayConfig = table.deepCopy(initialDelayConfig)
 
 -- INSTRUCTIONS
 
 local stop = function()
-    shouldActions = table.deepCopy(initialShouldActions)
+    shouldActions = {}
     delayConfig = table.deepCopy(initialDelayConfig)
 end
 
@@ -115,58 +107,78 @@ local delay = function(value, callback, inFrames)
 end
 
 local moveLeft = function(arguments, next)
-    arguments.speed = arguments.speed or 1
-    shouldActions.left.speed = arguments.speed
-    shouldActions.left.frames = arguments.seconds * 30
-    shouldActions.left.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.MOVE_LEFT,
+        speed = arguments.speed or 1,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local moveRight = function(arguments, next)
-    arguments.speed = arguments.speed or 1
-    shouldActions.right.speed = arguments.speed
-    shouldActions.right.frames = arguments.seconds * 30
-    shouldActions.right.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.MOVE_RIGHT,
+        speed = arguments.speed or 1,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local moveUp = function(arguments, next)
-    arguments.speed = arguments.speed or 1
-    shouldActions.up.speed = arguments.speed
-    shouldActions.up.frames = arguments.seconds * 30
-    shouldActions.up.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.MOVE_UP,
+        speed = arguments.speed or 1,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local moveDown = function(arguments, next)
-    arguments.speed = arguments.speed or 1
-    shouldActions.down.speed = arguments.speed
-    shouldActions.down.frames = arguments.seconds * 30
-    shouldActions.down.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.MOVE_DOWN,
+        speed = arguments.speed or 1,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local shootLeft = function(arguments, next)
-    shouldActions.shootLeft.frames = arguments.seconds * 30
-    shouldActions.shootLeft.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.SHOOT_LEFT,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local shootRight = function(arguments, next)
-    shouldActions.shootRight.frames = arguments.seconds * 30
-    shouldActions.shootRight.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.SHOOT_RIGHT,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local shootUp = function(arguments, next)
-    shouldActions.shootUp.frames = arguments.seconds * 30
-    shouldActions.shootUp.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.SHOOT_UP,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
 local shootDown = function(arguments, next)
-    shouldActions.shootDown.frames = arguments.seconds * 30
-    shouldActions.shootDown.playerIndex = arguments.playerIndex or 0
+    table.insert(shouldActions, {
+        action = TestActions.SHOOT_DOWN,
+        frames = arguments.seconds * 30,
+        playerIndex = arguments.playerIndex or 0
+    })
     delay(arguments.seconds, next)
 end
 
@@ -191,7 +203,10 @@ local giveItem = function(arguments, next)
 end
 
 local usePillCard = function(arguments, next)
-    shouldActions.pillCard = true
+    table.insert(shouldActions, {
+        action = TestActions.USE_PILL_CARD,
+        playerIndex = arguments.playerIndex or 0
+    })
     local delayFrames = 0
     if arguments.await then
        delayFrames = 13
@@ -200,7 +215,10 @@ local usePillCard = function(arguments, next)
 end
 
 local useBomb = function(arguments, next)
-    shouldActions.bomb = true
+    table.insert(shouldActions, {
+        action = TestActions.USE_BOMB,
+        playerIndex = arguments.playerIndex or 0
+    })
     local delayFrames = 0
     if arguments.await then
        delayFrames = 60
@@ -209,7 +227,10 @@ local useBomb = function(arguments, next)
 end
 
 local useItem = function(arguments, next)
-    shouldActions.item = true
+    table.insert(shouldActions, {
+        action = TestActions.USE_ITEM,
+        playerIndex = arguments.playerIndex or 0
+    })
     local delayFrames = 0
     if arguments.await then
        delayFrames = 18
@@ -219,7 +240,11 @@ end
 
 local dropPillCard = function(arguments, next)
     local framesCount = 2.5 * 30
-    shouldActions.drop.frames = framesCount
+    table.insert(shouldActions, {
+        action = TestActions.DROP_PILL_CARD,
+        frames = framesCount,
+        playerIndex = arguments.playerIndex or 0
+    })
     local delayFrames = 0
     if arguments.await then
        delayFrames = framesCount
@@ -228,7 +253,10 @@ local dropPillCard = function(arguments, next)
 end
 
 local waitForKey = function(arguments, next)
-    shouldActions.waitForKey = arguments.key
+    table.insert(shouldActions, {
+        action = TestActions.WAIT_FOR_KEY,
+        key = arguments.key
+    })
     delay(0, next, true)
 end
 
@@ -248,14 +276,14 @@ local enableDebugFlag = function(arguments, next)
     if not isDebugFlagEnabled(arguments.flag) then
         toggleDebugFlag(arguments.flag)
     end
-    delay(arguments.seconds, next)
+    delay(arguments.delay, next)
 end
 
 local disableDebugFlag = function(arguments, next)
     if isDebugFlagEnabled(arguments.flag) then
         toggleDebugFlag(arguments.flag)
     end
-    delay(arguments.seconds, next)
+    delay(arguments.delay, next)
 end
 
 local executeLua = function(arguments, next)
@@ -321,6 +349,10 @@ local function run(steps)
     for i = #steps, 1, -1 do
         local step = steps[i]
         local tempNextStep = nextStep
+        if not step.action or not TestSteps[step.action] then
+            print("Error: Step "..i.." does not have a valid action property, tests have failed.")
+            return
+        end
         nextStep = function()
             TestSteps[step.action](step.arguments, tempNextStep)
         end
@@ -328,50 +360,82 @@ local function run(steps)
     nextStep()
 end
 
+local function GetTestFromAction(action, player)
+    local truePlayerIndex
+
+    if player then
+        for i = 0, Game():GetNumPlayers() - 1 do
+            local p = Isaac.GetPlayer(i)
+            if player.InitSeed == p.InitSeed then
+                truePlayerIndex = i
+                break
+            end
+        end
+    end
+
+    return FindEntryByProperties(shouldActions, { action = action, playerIndex = truePlayerIndex })
+end
+
 TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
     if entity ~= nil and entity:ToPlayer() then
-        local playerIndex = entity:ToPlayer().Index
+        local player = entity:ToPlayer()
 
         -- Moving
         if inputHook == InputHook.GET_ACTION_VALUE then
             if buttonAction == ButtonAction.ACTION_LEFT then
-                if shouldActions.left.playerIndex == playerIndex and shouldActions.left.frames > 0 then
-                   return shouldActions.left.speed
+                local test = GetTestFromAction(TestActions.MOVE_LEFT, player)
+
+                if test then
+                    return test.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_RIGHT then
-                if shouldActions.right.playerIndex == playerIndex and shouldActions.right.frames > 0 then
-                   return shouldActions.right.speed
+                local test = GetTestFromAction(TestActions.MOVE_RIGHT, player)
+
+                if test then
+                    return test.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_UP then
-                if shouldActions.up.playerIndex == playerIndex and shouldActions.up.frames > 0 then
-                   return shouldActions.up.speed
+                local test = GetTestFromAction(TestActions.MOVE_UP, player)
+
+                if test then
+                    return test.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_DOWN then
-                if shouldActions.down.playerIndex == playerIndex and shouldActions.down.frames > 0 then
-                   return shouldActions.down.speed
+                local test = GetTestFromAction(TestActions.MOVE_DOWN, player)
+
+                if test then
+                    return test.speed
                 end
             end
 
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
-                if shouldActions.shootLeft.playerIndex == playerIndex and shouldActions.shootLeft.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_LEFT, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
-                if shouldActions.shootRight.playerIndex == playerIndex and shouldActions.shootRight.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_RIGHT, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
-                if shouldActions.shootUp.playerIndex == playerIndex and shouldActions.shootUp.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_UP, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
-                if shouldActions.shootDown.playerIndex == playerIndex and shouldActions.shootDown.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_DOWN, player)
+
+                if test then
                     return 1
                 end
             end
@@ -380,22 +444,28 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
         -- Use pill slot
         if inputHook == InputHook.IS_ACTION_TRIGGERED then
             if buttonAction == ButtonAction.ACTION_PILLCARD then
-                if shouldActions.pillCard then
-                    shouldActions.pillCard = false
+                local test = GetTestFromAction(TestActions.USE_PILL_CARD, player)
+
+                if test then
+                    RemoveElement(shouldActions, test)
                     return true
                 end
             end
 
             if buttonAction == ButtonAction.ACTION_BOMB then
-                if shouldActions.bomb then
-                    shouldActions.bomb = false
+                local test = GetTestFromAction(TestActions.USE_BOMB, player)
+
+                if test then
+                    RemoveElement(shouldActions, test)
                     return true
                 end
             end
 
             if buttonAction == ButtonAction.ACTION_ITEM then
-                if shouldActions.item then
-                    shouldActions.item = false
+                local test = GetTestFromAction(TestActions.USE_ITEM, player)
+
+                if test then
+                    RemoveElement(shouldActions, test)
                     return true
                 end
             end
@@ -404,28 +474,38 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
         -- Shooting
         if inputHook == InputHook.IS_ACTION_PRESSED then
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
-                if shouldActions.shootLeft.playerIndex == playerIndex and shouldActions.shootLeft.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_LEFT, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
-                if shouldActions.shootRight.playerIndex == playerIndex and shouldActions.shootRight.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_RIGHT, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
-                if shouldActions.shootUp.playerIndex == playerIndex and shouldActions.shootUp.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_UP, player)
+
+                if test then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
-                if shouldActions.shootDown.playerIndex == playerIndex and shouldActions.shootDown.frames > 0 then
+                local test = GetTestFromAction(TestActions.SHOOT_DOWN, player)
+
+                if test then
                     return 1
                 end
             end
 
             if buttonAction == ButtonAction.ACTION_DROP then
-                if shouldActions.drop.frames > 0 then
+                local test = GetTestFromAction(TestActions.DROP_PILL_CARD, player)
+
+                if test then
                     return 1
                 end
             end
@@ -434,34 +514,30 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
 end)
 
 TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
-    if not Game():IsPaused() then
-        for _, value in pairs(shouldActions) do
-            if value and type(value) == "table" and value.frames then
-                value.frames = math.max(0, value.frames - 1)
+
+    -- Decrement frames and remove completed actions
+    for i = 1, #shouldActions do
+        local test = shouldActions[i]
+
+        if test then
+            if test.frames then
+                if test.frames - 1 > 0 then
+                    test.frames = test.frames - 1
+                else
+                    table.remove(shouldActions, i)
+                    i = i - 1
+                end
             end
         end
     end
 
-    if shouldActions.left.frames <= 0 then
-        shouldActions.left.speed = 0
-    end
-
-    if shouldActions.right.frames <= 0 then
-        shouldActions.right.speed = 0
-    end
-
-    if shouldActions.up.frames <= 0 then
-        shouldActions.up.speed = 0
-    end
-
-    if shouldActions.down.frames <= 0 then
-        shouldActions.down.speed = 0
-    end
-
     delayConfig.frames = math.max(0, delayConfig.frames - 1)
 
-    if (shouldActions.waitForKey and Input.IsButtonPressed(shouldActions.waitForKey, 0)) or (not shouldActions.waitForKey and delayConfig.frames <= 0) then
-        shouldActions.waitForKey = nil
+    local waitForKeyTest = FindEntryByProperties(shouldActions, { action = TestActions.WAIT_FOR_KEY })
+
+    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
+        RemoveElement(shouldActions, waitForKeyTest)
+
         if delayConfig.next then
             delayConfig.next()
             if not delayConfig.next then
@@ -479,23 +555,132 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
             stop()
             run(registeredTests[args])
         else
-            print("Testing steps not found for '"..args.."'")
+            print("Tests not found for '"..args.."'")
         end
     end
 end)
 
-Test.RegisterTests("lootdeck", {
+Test.RegisterTests("cards", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2,
+            delay = 2
+        }
+    },
+    {
+        action = TestActions.USE_PILL_CARD,
+        arguments = {
+            await = true
+        }
+    },
+})
+
+Test.RegisterTests("items", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 126,
+            delay = 2
+        }
+    },
+    {
+        action = TestActions.USE_ITEM,
+        arguments = {
+            await = true
+        }
+    },
+})
+
+Test.RegisterTests("bombs", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 190
+        }
+    },
+    {
+        action = TestActions.USE_BOMB,
+        arguments = {}
+    },
+    {
+        action = TestActions.MOVE_UP,
+        arguments = {
+            seconds = 0.7
+        }
+    }
+})
+
+Test.RegisterTests("movement", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
+    {
+        action = TestActions.MOVE_LEFT,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_UP,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_RIGHT,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_DOWN,
+        arguments = {
+            seconds = 1
+        }
+    }
+})
+
+Test.RegisterTests("shooting", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
     {
         action = TestActions.SHOOT_RIGHT,
         arguments = {
-            seconds = 2
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.SHOOT_DOWN,
+        arguments = {
+            seconds = 1
         }
     },
     {
         action = TestActions.SHOOT_LEFT,
         arguments = {
-            seconds = 2,
-            playerIndex = 1
+            seconds = 1
         }
-    }
+    },
+    {
+        action = TestActions.SHOOT_UP,
+        arguments = {
+            seconds = 1
+        }
+    },
 })
