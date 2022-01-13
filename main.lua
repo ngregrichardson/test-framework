@@ -46,19 +46,23 @@ end
 local initialShouldActions = {
     left = {
         frames = 0,
-        speed = 0
+        speed = 0,
+        playerIndex = 0
     },
     right = {
         frames = 0,
-        speed = 0
+        speed = 0,
+        playerIndex = 0
     },
     up = {
         frames = 0,
-        speed = 0
+        speed = 0,
+        playerIndex = 0
     },
     down = {
         frames = 0,
-        speed = 0
+        speed = 0,
+        playerIndex = 0
     },
     shootLeft = {
         frames = 0
@@ -114,6 +118,7 @@ local moveLeft = function(arguments, next)
     arguments.speed = arguments.speed or 1
     shouldActions.left.speed = arguments.speed
     shouldActions.left.frames = arguments.seconds * 30
+    shouldActions.left.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
@@ -121,6 +126,7 @@ local moveRight = function(arguments, next)
     arguments.speed = arguments.speed or 1
     shouldActions.right.speed = arguments.speed
     shouldActions.right.frames = arguments.seconds * 30
+    shouldActions.right.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
@@ -128,6 +134,7 @@ local moveUp = function(arguments, next)
     arguments.speed = arguments.speed or 1
     shouldActions.up.speed = arguments.speed
     shouldActions.up.frames = arguments.seconds * 30
+    shouldActions.up.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
@@ -135,26 +142,31 @@ local moveDown = function(arguments, next)
     arguments.speed = arguments.speed or 1
     shouldActions.down.speed = arguments.speed
     shouldActions.down.frames = arguments.seconds * 30
+    shouldActions.down.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
 local shootLeft = function(arguments, next)
     shouldActions.shootLeft.frames = arguments.seconds * 30
+    shouldActions.shootLeft.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
 local shootRight = function(arguments, next)
     shouldActions.shootRight.frames = arguments.seconds * 30
+    shouldActions.shootRight.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
 local shootUp = function(arguments, next)
     shouldActions.shootUp.frames = arguments.seconds * 30
+    shouldActions.shootUp.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
 local shootDown = function(arguments, next)
     shouldActions.shootDown.frames = arguments.seconds * 30
+    shouldActions.shootDown.playerIndex = arguments.playerIndex or 0
     delay(arguments.seconds, next)
 end
 
@@ -165,13 +177,17 @@ local runCommand = function(arguments, next)
 end
 
 local giveCard = function(arguments, next)
-    arguments.command = "g k"..arguments.id
-    runCommand(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:AddCard(arguments.id)
+    delay(arguments.delay, next)
 end
 
 local giveItem = function(arguments, next)
-    arguments.command = "g c"..arguments.id
-    runCommand(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:AddCollectible(arguments.id)
+    delay(arguments.delay, next)
 end
 
 local usePillCard = function(arguments, next)
@@ -275,17 +291,17 @@ local spawn = function(arguments, next)
 end
 
 local TestSteps = {
-    [TestActions.MOVE_RIGHT] = moveRight,
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
+    [TestActions.MOVE_RIGHT] = moveRight,
     [TestActions.MOVE_DOWN] = moveDown,
-    [TestActions.SHOOT_RIGHT] = shootRight,
     [TestActions.SHOOT_LEFT] = shootLeft,
     [TestActions.SHOOT_UP] = shootUp,
+    [TestActions.SHOOT_RIGHT] = shootRight,
     [TestActions.SHOOT_DOWN] = shootDown,
+    [TestActions.USE_ITEM] = useItem,
     [TestActions.USE_PILL_CARD] = usePillCard,
     [TestActions.USE_BOMB] = useBomb,
-    [TestActions.USE_ITEM] = useItem,
     [TestActions.DROP_PILL_CARD] = dropPillCard,
     [TestActions.RUN_COMMAND] = runCommand,
     [TestActions.GIVE_CARD] = giveCard,
@@ -313,48 +329,49 @@ local function run(steps)
 end
 
 TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
-    if entity ~= nil then
+    if entity ~= nil and entity:ToPlayer() then
+        local playerIndex = entity:ToPlayer().Index
 
         -- Moving
         if inputHook == InputHook.GET_ACTION_VALUE then
             if buttonAction == ButtonAction.ACTION_LEFT then
-                if shouldActions.left.frames > 0 then
+                if shouldActions.left.playerIndex == playerIndex and shouldActions.left.frames > 0 then
                    return shouldActions.left.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_RIGHT then
-                if shouldActions.right.frames > 0 then
+                if shouldActions.right.playerIndex == playerIndex and shouldActions.right.frames > 0 then
                    return shouldActions.right.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_UP then
-                if shouldActions.up.frames > 0 then
+                if shouldActions.up.playerIndex == playerIndex and shouldActions.up.frames > 0 then
                    return shouldActions.up.speed
                 end
             end
             if buttonAction == ButtonAction.ACTION_DOWN then
-                if shouldActions.down.frames > 0 then
+                if shouldActions.down.playerIndex == playerIndex and shouldActions.down.frames > 0 then
                    return shouldActions.down.speed
                 end
             end
 
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
-                if shouldActions.shootLeft.frames > 0 then
+                if shouldActions.shootLeft.playerIndex == playerIndex and shouldActions.shootLeft.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
-                if shouldActions.shootRight.frames > 0 then
+                if shouldActions.shootRight.playerIndex == playerIndex and shouldActions.shootRight.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
-                if shouldActions.shootUp.frames > 0 then
+                if shouldActions.shootUp.playerIndex == playerIndex and shouldActions.shootUp.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
-                if shouldActions.shootDown.frames > 0 then
+                if shouldActions.shootDown.playerIndex == playerIndex and shouldActions.shootDown.frames > 0 then
                     return 1
                 end
             end
@@ -387,22 +404,22 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
         -- Shooting
         if inputHook == InputHook.IS_ACTION_PRESSED then
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
-                if shouldActions.shootLeft.frames > 0 then
+                if shouldActions.shootLeft.playerIndex == playerIndex and shouldActions.shootLeft.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
-                if shouldActions.shootRight.frames > 0 then
+                if shouldActions.shootRight.playerIndex == playerIndex and shouldActions.shootRight.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
-                if shouldActions.shootUp.frames > 0 then
+                if shouldActions.shootUp.playerIndex == playerIndex and shouldActions.shootUp.frames > 0 then
                     return 1
                 end
             end
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
-                if shouldActions.shootDown.frames > 0 then
+                if shouldActions.shootDown.playerIndex == playerIndex and shouldActions.shootDown.frames > 0 then
                     return 1
                 end
             end
@@ -466,3 +483,19 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
         end
     end
 end)
+
+Test.RegisterTests("lootdeck", {
+    {
+        action = TestActions.SHOOT_RIGHT,
+        arguments = {
+            seconds = 2
+        }
+    },
+    {
+        action = TestActions.SHOOT_LEFT,
+        arguments = {
+            seconds = 2,
+            playerIndex = 1
+        }
+    }
+})
