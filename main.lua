@@ -70,7 +70,9 @@ TestActions = {
     DISABLE_DEBUG_FLAG = "disableDebugFlag",
     EXECUTE_LUA = "executeLua",
     RESTART = "restart",
-    SPAWN = "spawn"
+    SPAWN = "spawn",
+    WAIT_FOR_SECONDS = "waitForSeconds",
+    WAIT_FOR_FRAMES = "waitForFrames"
 }
 
 function Test.RegisterTests(name, tests)
@@ -85,6 +87,14 @@ local initialDelayConfig = {
 local shouldActions = {}
 
 local delayConfig = table.deepCopy(initialDelayConfig)
+
+local GetAsyncOrDelay = function(arguments, value)
+    if arguments.async then
+        return 0
+    else
+        return value
+    end
+end
 
 -- INSTRUCTIONS
 
@@ -106,6 +116,14 @@ local delay = function(value, callback, inFrames)
     end
 end
 
+local waitForSeconds = function(arguments, next)
+    delay(arguments.seconds, next)
+end
+
+local waitForFrames = function(arguments, next)
+    delay(arguments.frames, next, true)
+end
+
 local moveLeft = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.MOVE_LEFT,
@@ -113,7 +131,7 @@ local moveLeft = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local moveRight = function(arguments, next)
@@ -123,7 +141,7 @@ local moveRight = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local moveUp = function(arguments, next)
@@ -133,7 +151,7 @@ local moveUp = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local moveDown = function(arguments, next)
@@ -143,7 +161,7 @@ local moveDown = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local shootLeft = function(arguments, next)
@@ -152,7 +170,7 @@ local shootLeft = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local shootRight = function(arguments, next)
@@ -161,7 +179,7 @@ local shootRight = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local shootUp = function(arguments, next)
@@ -170,7 +188,7 @@ local shootUp = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local shootDown = function(arguments, next)
@@ -179,12 +197,12 @@ local shootDown = function(arguments, next)
         frames = arguments.seconds * 30,
         playerIndex = arguments.playerIndex or 0
     })
-    delay(arguments.seconds, next)
+    delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local runCommand = function(arguments, next)
     local result = Isaac.ExecuteCommand(arguments.command)
-    delay(arguments.delay, next)
+    delay(0, next)
     return result
 end
 
@@ -192,14 +210,14 @@ local giveCard = function(arguments, next)
     local player = Isaac.GetPlayer(arguments.playerIndex or 0)
 
     player:AddCard(arguments.id)
-    delay(arguments.delay, next)
+    delay(0, next)
 end
 
 local giveItem = function(arguments, next)
     local player = Isaac.GetPlayer(arguments.playerIndex or 0)
 
     player:AddCollectible(arguments.id)
-    delay(arguments.delay, next)
+    delay(0, next)
 end
 
 local usePillCard = function(arguments, next)
@@ -207,11 +225,7 @@ local usePillCard = function(arguments, next)
         action = TestActions.USE_PILL_CARD,
         playerIndex = arguments.playerIndex or 0
     })
-    local delayFrames = 0
-    if arguments.await then
-       delayFrames = 13
-    end
-    delay(delayFrames, next, true)
+    delay(GetAsyncOrDelay(arguments, 13), next, true)
 end
 
 local useBomb = function(arguments, next)
@@ -219,11 +233,7 @@ local useBomb = function(arguments, next)
         action = TestActions.USE_BOMB,
         playerIndex = arguments.playerIndex or 0
     })
-    local delayFrames = 0
-    if arguments.await then
-       delayFrames = 60
-    end
-    delay(delayFrames, next, true)
+    delay(GetAsyncOrDelay(arguments, 60), next, true)
 end
 
 local useItem = function(arguments, next)
@@ -231,11 +241,7 @@ local useItem = function(arguments, next)
         action = TestActions.USE_ITEM,
         playerIndex = arguments.playerIndex or 0
     })
-    local delayFrames = 0
-    if arguments.await then
-       delayFrames = 18
-    end
-    delay(delayFrames, next, true)
+    delay(GetAsyncOrDelay(arguments, 18), next, true)
 end
 
 local dropPillCard = function(arguments, next)
@@ -245,11 +251,7 @@ local dropPillCard = function(arguments, next)
         frames = framesCount,
         playerIndex = arguments.playerIndex or 0
     })
-    local delayFrames = 0
-    if arguments.await then
-       delayFrames = framesCount
-    end
-    delay(delayFrames, next, true)
+    delay(GetAsyncOrDelay(arguments, framesCount), next, true)
 end
 
 local waitForKey = function(arguments, next)
@@ -276,14 +278,14 @@ local enableDebugFlag = function(arguments, next)
     if not isDebugFlagEnabled(arguments.flag) then
         toggleDebugFlag(arguments.flag)
     end
-    delay(arguments.delay, next)
+    delay(0, next)
 end
 
 local disableDebugFlag = function(arguments, next)
     if isDebugFlagEnabled(arguments.flag) then
         toggleDebugFlag(arguments.flag)
     end
-    delay(arguments.delay, next)
+    delay(0, next)
 end
 
 local executeLua = function(arguments, next)
@@ -315,7 +317,7 @@ end
 local spawn = function(arguments, next)
     Isaac.Spawn(arguments.type or 0, arguments.variant or 0, arguments.subType or 0, arguments.position or Game():GetRoom():GetCenterPos(), arguments.velocity or Vector.Zero, arguments.spawner)
 
-    delay(arguments.delay, next)
+    delay(0, next)
 end
 
 local TestSteps = {
@@ -339,7 +341,9 @@ local TestSteps = {
     [TestActions.DISABLE_DEBUG_FLAG] = disableDebugFlag,
     [TestActions.EXECUTE_LUA] = executeLua,
     [TestActions.RESTART] = restart,
-    [TestActions.SPAWN] = spawn
+    [TestActions.SPAWN] = spawn,
+    [TestActions.WAIT_FOR_SECONDS] = waitForSeconds,
+    [TestActions.WAIT_FOR_FRAMES] = waitForFrames
 }
 
 -- INSTRUCTIONS END
@@ -575,7 +579,6 @@ Test.RegisterTests("cards", {
     {
         action = TestActions.USE_PILL_CARD,
         arguments = {
-            await = true
         }
     },
 })
@@ -595,7 +598,6 @@ Test.RegisterTests("items", {
     {
         action = TestActions.USE_ITEM,
         arguments = {
-            await = true
         }
     },
 })
@@ -643,13 +645,80 @@ Test.RegisterTests("movement", {
     {
         action = TestActions.MOVE_RIGHT,
         arguments = {
-            seconds = 1
+            seconds = 1,
+            async = true
         }
     },
     {
         action = TestActions.MOVE_DOWN,
         arguments = {
             seconds = 1
+        }
+    }
+})
+
+Test.RegisterTests("movement2", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+            id = 19
+        }
+    },
+    {
+        action = TestActions.MOVE_LEFT,
+        arguments = {
+            seconds = 1,
+            async = true
+        }
+    },
+    {
+        action = TestActions.MOVE_RIGHT,
+        arguments = {
+            seconds = 1,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_UP,
+        arguments = {
+            seconds = 1,
+            async = true
+        }
+    },
+        {
+        action = TestActions.MOVE_UP,
+        arguments = {
+            seconds = 1,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_RIGHT,
+        arguments = {
+            seconds = 1,
+            async = true
+        }
+    },
+    {
+        action = TestActions.MOVE_DOWN,
+        arguments = {
+            seconds = 1,
+            async = true
+        }
+    },
+        {
+        action = TestActions.MOVE_LEFT,
+        arguments = {
+            seconds = 1,
+            async = true,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.MOVE_DOWN,
+        arguments = {
+            seconds = 1,
+            playerIndex = 1
         }
     }
 })
@@ -683,4 +752,19 @@ Test.RegisterTests("shooting", {
             seconds = 1
         }
     },
+})
+
+Test.RegisterTests("key", {
+    {
+        action = TestActions.WAIT_FOR_KEY,
+        arguments = {
+            key = Keyboard.KEY_ENTER
+        }
+    },
+    {
+        action = TestActions.SHOOT_RIGHT,
+        arguments = {
+            seconds = 1
+        }
+    }
 })
