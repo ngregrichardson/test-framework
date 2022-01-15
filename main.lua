@@ -1,4 +1,6 @@
 TestingMod = RegisterMod("Testing Framework", 1)
+local font = Font()
+font:Load("font/terminus.fnt")
 
 function table.deepCopy(original)
 	local copy = {}
@@ -72,7 +74,8 @@ TestActions = {
     RESTART = "restart",
     SPAWN = "spawn",
     WAIT_FOR_SECONDS = "waitForSeconds",
-    WAIT_FOR_FRAMES = "waitForFrames"
+    WAIT_FOR_FRAMES = "waitForFrames",
+    REPEAT = "repeat"
 }
 
 function Test.RegisterTests(name, tests)
@@ -320,6 +323,10 @@ local spawn = function(arguments, next)
     delay(0, next)
 end
 
+local repeatStep = function(arguments, next)
+    delay(0, next)
+end
+
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -343,13 +350,15 @@ local TestSteps = {
     [TestActions.RESTART] = restart,
     [TestActions.SPAWN] = spawn,
     [TestActions.WAIT_FOR_SECONDS] = waitForSeconds,
-    [TestActions.WAIT_FOR_FRAMES] = waitForFrames
+    [TestActions.WAIT_FOR_FRAMES] = waitForFrames,
+    [TestActions.REPEAT] = repeatStep
 }
 
 -- INSTRUCTIONS END
 
 local function run(steps)
     local nextStep = nil
+    local repeatStepTimes
     for i = #steps, 1, -1 do
         local step = steps[i]
         local tempNextStep = nextStep
@@ -357,9 +366,25 @@ local function run(steps)
             print("Error: Step "..i.." does not have a valid action property, tests have failed.")
             return
         end
+        if step.action == TestActions.REPEAT then
+            repeatStepTimes = step.arguments.times or 1
+            goto continue
+        end
+
         nextStep = function()
             TestSteps[step.action](step.arguments, tempNextStep)
         end
+
+        if repeatStepTimes then
+            for j = 1, repeatStepTimes do
+                local innerTempNextStep = nextStep
+                nextStep = function()
+                    TestSteps[step.action](step.arguments, innerTempNextStep)
+                end
+            end
+            repeatStepTimes = nil
+        end
+        ::continue::
     end
     nextStep()
 end
@@ -379,6 +404,25 @@ local function GetTestFromAction(action, player)
 
     return FindEntryByProperties(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+    local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
+    local color = KColor(1, 1, 1, 1)
+    local boxSize = Isaac.GetScreenWidth() / 2
+    local waitForKeyTest = GetTestFromAction(TestActions.WAIT_FOR_KEY)
+
+    if waitForKeyTest then
+        local keyName
+        for key, value in pairs(Keyboard) do
+            if value == waitForKeyTest.key then
+                keyName = key
+                break
+            end
+        end
+        font:DrawString("Hit "..(keyName or "the specified key").." to continue the tests...", position.X, position.Y, color, boxSize, true)
+        position = position - Vector(0, 15)
+    end
+end)
 
 TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
     if entity ~= nil and entity:ToPlayer() then
@@ -759,6 +803,21 @@ Test.RegisterTests("key", {
         action = TestActions.WAIT_FOR_KEY,
         arguments = {
             key = Keyboard.KEY_ENTER
+        }
+    },
+    {
+        action = TestActions.SHOOT_RIGHT,
+        arguments = {
+            seconds = 1
+        }
+    }
+})
+
+Test.RegisterTests("seconds", {
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 5
         }
     },
     {
