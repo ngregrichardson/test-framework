@@ -371,6 +371,10 @@ local function run(steps)
             goto continue
         end
 
+        if i == #steps then
+            step.arguments.async = nil
+        end
+
         nextStep = function()
             TestSteps[step.action](step.arguments, tempNextStep)
         end
@@ -762,7 +766,8 @@ Test.RegisterTests("movement2", {
         action = TestActions.MOVE_DOWN,
         arguments = {
             seconds = 1,
-            playerIndex = 1
+            playerIndex = 1,
+            async = true
         }
     }
 })
