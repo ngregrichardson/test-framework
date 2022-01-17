@@ -77,7 +77,8 @@ TestActions = {
     WAIT_FOR_FRAMES = "waitForFrames",
     REPEAT = "repeat",
     SWAP_CARDS = "swapCards",
-    SWAP_ACTIVE_ITEMS = "swapActiveItems"
+    SWAP_ACTIVE_ITEMS = "swapActiveItems",
+    SWAP = "swap"
 }
 
 function Test.RegisterTests(name, tests)
@@ -363,6 +364,14 @@ local swapActiveItems = function(arguments, next)
     delay(0, next)
 end
 
+local swap = function(arguments, next)
+    table.insert(shouldActions, {
+        action = TestActions.SWAP,
+        playerIndex = arguments.playerIndex or 0
+    })
+    delay(0, next)
+end
+
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -389,7 +398,8 @@ local TestSteps = {
     [TestActions.WAIT_FOR_FRAMES] = waitForFrames,
     [TestActions.REPEAT] = repeatStep,
     [TestActions.SWAP_CARDS] = swapCards,
-    [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems
+    [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems,
+    [TestActions.SWAP] = swap
 }
 
 -- INSTRUCTIONS END
@@ -578,19 +588,19 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
             end
 
             -- Swap cards/items
-            -- if buttonAction == ButtonAction.ACTION_DROP then
-            --     local test = GetTestFromAction(TestActions.SWAP, player)
+            if buttonAction == ButtonAction.ACTION_DROP then
+                local test = GetTestFromAction(TestActions.SWAP, player)
 
-            --     if test then
-            --         local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
-            --         if not isForgotten or (isForgotten and test.shouldRemove) then
-            --             RemoveElement(shouldActions, test)
-            --         else
-            --             test.shouldRemove = true
-            --         end
-            --         return true
-            --     end
-            -- end
+                if test then
+                    local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
+                    if not isForgotten or (isForgotten and test.shouldRemove) then
+                        RemoveElement(shouldActions, test)
+                    else
+                        test.shouldRemove = true
+                    end
+                    return true
+                end
+            end
         end
 
         if inputHook == InputHook.IS_ACTION_PRESSED then
@@ -980,6 +990,61 @@ Test.RegisterTests("swapItems", {
     },
     {
         action = TestActions.SWAP_ACTIVE_ITEMS,
+        arguments = {
+        }
+    }
+})
+
+Test.RegisterTests("swap", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 534
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 251
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 650
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 84
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.SWAP,
         arguments = {
         }
     }
