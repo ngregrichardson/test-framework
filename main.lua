@@ -78,6 +78,7 @@ TestActions = {
     REPEAT = "repeat",
     SWAP_CARDS = "swapCards",
     SWAP_ACTIVE_ITEMS = "swapActiveItems",
+    SWAP_SUB_PLAYERS = "swapSubPlayers",
     SWAP = "swap"
 }
 
@@ -372,6 +373,14 @@ local swap = function(arguments, next)
     delay(0, next)
 end
 
+local swapSubPlayers = function(arguments, next)
+    table.insert(shouldActions, {
+        action = TestActions.SWAP_SUB_PLAYERS,
+        playerIndex = arguments.playerIndex or 0
+    })
+    delay(0, next)
+end
+
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -399,7 +408,8 @@ local TestSteps = {
     [TestActions.REPEAT] = repeatStep,
     [TestActions.SWAP_CARDS] = swapCards,
     [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems,
-    [TestActions.SWAP] = swap
+    [TestActions.SWAP] = swap,
+    [TestActions.SWAP_SUB_PLAYERS] = swapSubPlayers
 }
 
 -- INSTRUCTIONS END
@@ -599,6 +609,19 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                         test.shouldRemove = true
                     end
                     return true
+                end
+            end
+
+            -- Swap sub players
+            if buttonAction == ButtonAction.ACTION_DROP then
+                local test = GetTestFromAction(TestActions.SWAP_SUB_PLAYERS, player)
+
+                if test then
+                    local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
+                    if isForgotten then
+                        RemoveElement(shouldActions, test)
+                        return true
+                    end
                 end
             end
         end
@@ -1045,6 +1068,62 @@ Test.RegisterTests("swap", {
     },
     {
         action = TestActions.SWAP,
+        arguments = {
+        }
+    }
+})
+
+Test.RegisterTests("swapSubPlayers", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+            id = 16
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 534
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 251
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 650
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 84
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.SWAP_SUB_PLAYERS,
         arguments = {
         }
     }
