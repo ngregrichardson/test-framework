@@ -75,7 +75,8 @@ TestActions = {
     SPAWN = "spawn",
     WAIT_FOR_SECONDS = "waitForSeconds",
     WAIT_FOR_FRAMES = "waitForFrames",
-    REPEAT = "repeat"
+    REPEAT = "repeat",
+    SWAP = "swap"
 }
 
 function Test.RegisterTests(name, tests)
@@ -327,6 +328,14 @@ local repeatStep = function(arguments, next)
     delay(0, next)
 end
 
+local swap = function(arguments, next)
+    table.insert(shouldActions, {
+        action = TestActions.SWAP,
+        playerIndex = arguments.playerIndex or 0
+    })
+    delay(0, next)
+end
+
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -351,7 +360,8 @@ local TestSteps = {
     [TestActions.SPAWN] = spawn,
     [TestActions.WAIT_FOR_SECONDS] = waitForSeconds,
     [TestActions.WAIT_FOR_FRAMES] = waitForFrames,
-    [TestActions.REPEAT] = repeatStep
+    [TestActions.REPEAT] = repeatStep,
+    [TestActions.SWAP] = swap
 }
 
 -- INSTRUCTIONS END
@@ -515,6 +525,15 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
 
             if buttonAction == ButtonAction.ACTION_ITEM then
                 local test = GetTestFromAction(TestActions.USE_ITEM, player)
+
+                if test then
+                    RemoveElement(shouldActions, test)
+                    return true
+                end
+            end
+
+            if buttonAction == ButtonAction.ACTION_DROP then
+                local test = GetTestFromAction(TestActions.SWAP, player)
 
                 if test then
                     RemoveElement(shouldActions, test)
@@ -829,6 +848,43 @@ Test.RegisterTests("seconds", {
         action = TestActions.SHOOT_RIGHT,
         arguments = {
             seconds = 1
+        }
+    }
+})
+
+Test.RegisterTests("swap", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 251
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.SWAP,
+        arguments = {
         }
     }
 })
