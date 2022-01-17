@@ -76,7 +76,8 @@ TestActions = {
     WAIT_FOR_SECONDS = "waitForSeconds",
     WAIT_FOR_FRAMES = "waitForFrames",
     REPEAT = "repeat",
-    SWAP = "swap"
+    SWAP_CARDS = "swapCards",
+    SWAP_ACTIVE_ITEMS = "swapActiveItems"
 }
 
 function Test.RegisterTests(name, tests)
@@ -328,11 +329,37 @@ local repeatStep = function(arguments, next)
     delay(0, next)
 end
 
-local swap = function(arguments, next)
-    table.insert(shouldActions, {
-        action = TestActions.SWAP,
-        playerIndex = arguments.playerIndex or 0
-    })
+local swapCards = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    local cards = {}
+
+    for i = 0, 3 do
+        local card = player:GetCard(i)
+
+        if card and card ~= 0 then
+            table.insert(cards, card)
+        end
+    end
+
+    for slot, card in pairs(cards) do
+        local newSlot = slot + 1
+
+        if newSlot > #cards then
+            newSlot = 1
+        end
+
+        player:SetCard(newSlot - 1, card)
+    end
+
+    delay(0, next)
+end
+
+local swapActiveItems = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:SwapActiveItems()
+
     delay(0, next)
 end
 
@@ -361,7 +388,8 @@ local TestSteps = {
     [TestActions.WAIT_FOR_SECONDS] = waitForSeconds,
     [TestActions.WAIT_FOR_FRAMES] = waitForFrames,
     [TestActions.REPEAT] = repeatStep,
-    [TestActions.SWAP] = swap
+    [TestActions.SWAP_CARDS] = swapCards,
+    [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems
 }
 
 -- INSTRUCTIONS END
@@ -403,18 +431,19 @@ local function run(steps)
     nextStep()
 end
 
-local function GetTestFromAction(action, player)
-    local truePlayerIndex
-
+local function GetTruePlayerIndex(player)
     if player then
         for i = 0, Game():GetNumPlayers() - 1 do
             local p = Isaac.GetPlayer(i)
             if player.InitSeed == p.InitSeed then
-                truePlayerIndex = i
-                break
+                return i
             end
         end
     end
+end
+
+local function GetTestFromAction(action, player)
+    local truePlayerIndex = GetTruePlayerIndex(player)
 
     return FindEntryByProperties(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
@@ -442,8 +471,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
     if entity ~= nil and entity:ToPlayer() then
         local player = entity:ToPlayer()
 
-        -- Moving
         if inputHook == InputHook.GET_ACTION_VALUE then
+            -- Moving left
             if buttonAction == ButtonAction.ACTION_LEFT then
                 local test = GetTestFromAction(TestActions.MOVE_LEFT, player)
 
@@ -451,6 +480,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return test.speed
                 end
             end
+
+            -- Moving right
             if buttonAction == ButtonAction.ACTION_RIGHT then
                 local test = GetTestFromAction(TestActions.MOVE_RIGHT, player)
 
@@ -458,6 +489,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return test.speed
                 end
             end
+
+            -- Moving up
             if buttonAction == ButtonAction.ACTION_UP then
                 local test = GetTestFromAction(TestActions.MOVE_UP, player)
 
@@ -465,6 +498,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return test.speed
                 end
             end
+
+            -- Moving down
             if buttonAction == ButtonAction.ACTION_DOWN then
                 local test = GetTestFromAction(TestActions.MOVE_DOWN, player)
 
@@ -473,6 +508,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 end
             end
 
+            -- Shooting left
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
                 local test = GetTestFromAction(TestActions.SHOOT_LEFT, player)
 
@@ -480,6 +516,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting right
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
                 local test = GetTestFromAction(TestActions.SHOOT_RIGHT, player)
 
@@ -487,6 +525,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting up
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
                 local test = GetTestFromAction(TestActions.SHOOT_UP, player)
 
@@ -494,6 +534,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting down
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
                 local test = GetTestFromAction(TestActions.SHOOT_DOWN, player)
 
@@ -503,8 +545,9 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
             end
         end
 
-        -- Use pill slot
         if inputHook == InputHook.IS_ACTION_TRIGGERED then
+
+            -- Use pill/card
             if buttonAction == ButtonAction.ACTION_PILLCARD then
                 local test = GetTestFromAction(TestActions.USE_PILL_CARD, player)
 
@@ -514,6 +557,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 end
             end
 
+            -- Use bomb
             if buttonAction == ButtonAction.ACTION_BOMB then
                 local test = GetTestFromAction(TestActions.USE_BOMB, player)
 
@@ -523,6 +567,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 end
             end
 
+            -- Use item
             if buttonAction == ButtonAction.ACTION_ITEM then
                 local test = GetTestFromAction(TestActions.USE_ITEM, player)
 
@@ -532,18 +577,25 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 end
             end
 
-            if buttonAction == ButtonAction.ACTION_DROP then
-                local test = GetTestFromAction(TestActions.SWAP, player)
+            -- Swap cards/items
+            -- if buttonAction == ButtonAction.ACTION_DROP then
+            --     local test = GetTestFromAction(TestActions.SWAP, player)
 
-                if test then
-                    RemoveElement(shouldActions, test)
-                    return true
-                end
-            end
+            --     if test then
+            --         local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
+            --         if not isForgotten or (isForgotten and test.shouldRemove) then
+            --             RemoveElement(shouldActions, test)
+            --         else
+            --             test.shouldRemove = true
+            --         end
+            --         return true
+            --     end
+            -- end
         end
 
-        -- Shooting
         if inputHook == InputHook.IS_ACTION_PRESSED then
+
+            -- Shooting left
             if buttonAction == ButtonAction.ACTION_SHOOTLEFT then
                 local test = GetTestFromAction(TestActions.SHOOT_LEFT, player)
 
@@ -551,6 +603,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting right
             if buttonAction == ButtonAction.ACTION_SHOOTRIGHT then
                 local test = GetTestFromAction(TestActions.SHOOT_RIGHT, player)
 
@@ -558,6 +612,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting up
             if buttonAction == ButtonAction.ACTION_SHOOTUP then
                 local test = GetTestFromAction(TestActions.SHOOT_UP, player)
 
@@ -565,6 +621,8 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
+
+            -- Shooting down
             if buttonAction == ButtonAction.ACTION_SHOOTDOWN then
                 local test = GetTestFromAction(TestActions.SHOOT_DOWN, player)
 
@@ -573,6 +631,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 end
             end
 
+            -- Drop pill/card/trinkets
             if buttonAction == ButtonAction.ACTION_DROP then
                 local test = GetTestFromAction(TestActions.DROP_PILL_CARD, player)
 
@@ -852,7 +911,7 @@ Test.RegisterTests("seconds", {
     }
 })
 
-Test.RegisterTests("swap", {
+Test.RegisterTests("swapCards", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -883,7 +942,44 @@ Test.RegisterTests("swap", {
         }
     },
     {
-        action = TestActions.SWAP,
+        action = TestActions.SWAP_CARDS,
+        arguments = {
+        }
+    }
+})
+
+Test.RegisterTests("swapItems", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 534
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 650
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 84
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.SWAP_ACTIVE_ITEMS,
         arguments = {
         }
     }
