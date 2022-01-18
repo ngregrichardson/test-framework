@@ -22,6 +22,14 @@ function table.isArray(t)
     return true
 end
 
+function string.toPercentage(s)
+    local matched = s:match("(.*)%%")
+    matched = matched:gsub("%s+", "")
+    if tonumber(matched) then
+        return (tonumber(matched) / 100)
+    end
+end
+
 local function FindEntryByProperties(t, props)
     local found
 	for _, item in pairs(t) do
@@ -92,7 +100,8 @@ TestActions = {
     SWAP_CARDS = "swapCards",
     SWAP_ACTIVE_ITEMS = "swapActiveItems",
     SWAP_SUB_PLAYERS = "swapSubPlayers",
-    SWAP = "swap"
+    SWAP = "swap",
+    TELEPORT_TO_POSITION = "teleportToPosition"
 }
 
 local function IncludesMultipleTests(tests)
@@ -525,6 +534,38 @@ local swapSubPlayers = function(arguments, next)
     delay(0, next)
 end
 
+local teleportToPosition = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    local bottomRight = Game():GetRoom():GetBottomRightPos()
+
+    local position = Vector.Zero
+
+    if type(arguments.x) == "number" then
+        position.X = arguments.x
+    elseif type(arguments.x) == "string" then
+        local percentage = arguments.x:toPercentage()
+
+        if percentage then
+            position.X = bottomRight.X * percentage
+        end
+    end
+
+    if type(arguments.y) == "number" then
+        position.Y = arguments.y
+    elseif type(arguments.y) == "string" then
+        local percentage = arguments.y:toPercentage()
+
+        if percentage then
+            position.Y = bottomRight.Y * percentage
+        end
+    end
+
+    player.Position = Game():GetRoom():GetClampedPosition(position, 0)
+
+    delay(0, next)
+end
+
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -557,7 +598,8 @@ local TestSteps = {
     [TestActions.SWAP_CARDS] = swapCards,
     [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems,
     [TestActions.SWAP] = swap,
-    [TestActions.SWAP_SUB_PLAYERS] = swapSubPlayers
+    [TestActions.SWAP_SUB_PLAYERS] = swapSubPlayers,
+    [TestActions.TELEPORT_TO_POSITION] = teleportToPosition
 }
 
 -- INSTRUCTIONS END
@@ -1466,6 +1508,21 @@ Test.RegisterTest("drop", {
         action = TestActions.DROP_POCKET_ITEM,
         arguments = {
             playerIndex = 1
+        }
+    }
+})
+
+Test.RegisterTest("teleport", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+        }
+    },
+    {
+        action = TestActions.TELEPORT_TO_POSITION,
+        arguments = {
+            x = "50%",
+            y = "50%"
         }
     }
 })
