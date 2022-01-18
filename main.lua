@@ -604,9 +604,8 @@ local TestSteps = {
 
 -- INSTRUCTIONS END
 
-local function run(steps)
-    local nextStep = nil
-    local repeatStepTimes
+local function createRunChain(steps, next)
+    local nextStep = next
     for i = #steps, 1, -1 do
         local step = steps[i]
         local tempNextStep = nextStep
@@ -614,8 +613,17 @@ local function run(steps)
             print("Error: Step "..i.." does not have a valid action property, tests have failed.")
             return
         end
+
         if step.action == TestActions.REPEAT then
-            repeatStepTimes = step.arguments.times or 1
+            local repeatSteps = {}
+
+            for j = 1, step.arguments.times do
+                for _, repeatedStep in pairs(step.arguments.steps) do
+                    table.insert(repeatSteps, repeatedStep)
+                end
+            end
+            nextStep = createRunChain(repeatSteps)
+
             goto continue
         end
 
@@ -627,17 +635,15 @@ local function run(steps)
             TestSteps[step.action](step.arguments, tempNextStep)
         end
 
-        if repeatStepTimes then
-            for j = 1, repeatStepTimes do
-                local innerTempNextStep = nextStep
-                nextStep = function()
-                    TestSteps[step.action](step.arguments, innerTempNextStep)
-                end
-            end
-            repeatStepTimes = nil
-        end
         ::continue::
     end
+
+    return nextStep
+end
+
+local function run(steps)
+    local nextStep = createRunChain(steps)
+
     nextStep()
 end
 
@@ -1523,6 +1529,29 @@ Test.RegisterTest("teleport", {
         arguments = {
             x = "50%",
             y = "50%"
+        }
+    }
+})
+
+Test.RegisterTest("repeat", {
+    {
+        action = TestActions.REPEAT,
+        arguments = {
+            times = 5,
+            steps = {
+                {
+                    action = TestActions.USE_CARD,
+                    arguments = {
+                        id = 3
+                    }
+                },
+                {
+                    action = TestActions.WAIT_FOR_KEY,
+                    arguments = {
+                        key = Keyboard.KEY_ENTER
+                    }
+                }
+            }
         }
     }
 })
