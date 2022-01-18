@@ -632,7 +632,7 @@ local function createRunChain(steps, next)
         end
 
         nextStep = function()
-            TestSteps[step.action](step.arguments, tempNextStep)
+            TestSteps[step.action](step.arguments or {}, tempNextStep)
         end
 
         ::continue::
