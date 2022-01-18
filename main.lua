@@ -97,7 +97,7 @@ TestActions = {
     WAIT_FOR_SECONDS = "waitForSeconds",
     WAIT_FOR_FRAMES = "waitForFrames",
     REPEAT = "repeat",
-    SWAP_CARDS = "swapCards",
+    SWAP_PILL_CARDS = "swapPillCards",
     SWAP_ACTIVE_ITEMS = "swapActiveItems",
     SWAP_SUB_PLAYERS = "swapSubPlayers",
     SWAP = "swap",
@@ -417,7 +417,7 @@ end
 local waitForKey = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.WAIT_FOR_KEY,
-        key = arguments.key
+        key = arguments.key or Keyboard.KEY_ENTER
     })
     delay(0, next)
 end
@@ -468,14 +468,14 @@ local restart = function(arguments, next)
     if not arguments.seed then
         runCommand(arguments, next)
     else
-        runCommand({ command = arguments.command, delay = 0 }, function()
-            runCommand({ command = "seed "..arguments.seed, delay = arguments.delay }, next)
+        runCommand({ command = arguments.command }, function()
+            runCommand({ command = "seed "..arguments.seed }, next)
         end)
     end
 end
 
 local spawn = function(arguments, next)
-    Isaac.Spawn(arguments.type or 0, arguments.variant or 0, arguments.subType or 0, arguments.position or Game():GetRoom():GetCenterPos(), arguments.velocity or Vector.Zero, arguments.spawner)
+    Isaac.Spawn(arguments.type, arguments.variant or 0, arguments.subType or 0, arguments.position or Game():GetRoom():GetCenterPos(), arguments.velocity or Vector.Zero, arguments.spawner)
 
     delay(0, next)
 end
@@ -484,7 +484,7 @@ local repeatStep = function(arguments, next)
     delay(0, next)
 end
 
-local swapCards = function(arguments, next)
+local swapPillCards = function(arguments, next)
     local player = Isaac.GetPlayer(arguments.playerIndex or 0)
 
     local cards = {}
@@ -595,7 +595,7 @@ local TestSteps = {
     [TestActions.WAIT_FOR_SECONDS] = waitForSeconds,
     [TestActions.WAIT_FOR_FRAMES] = waitForFrames,
     [TestActions.REPEAT] = repeatStep,
-    [TestActions.SWAP_CARDS] = swapCards,
+    [TestActions.SWAP_PILL_CARDS] = swapPillCards,
     [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems,
     [TestActions.SWAP] = swap,
     [TestActions.SWAP_SUB_PLAYERS] = swapSubPlayers,
@@ -1248,7 +1248,7 @@ Test.RegisterTest("swapCards", {
         }
     },
     {
-        action = TestActions.SWAP_CARDS,
+        action = TestActions.SWAP_PILL_CARDS,
         arguments = {
         }
     }
