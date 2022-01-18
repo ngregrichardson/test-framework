@@ -23,13 +23,13 @@ local function FindEntryByProperties(t, props)
                 break
             end
         end
-        
+
         if foundAll then
             found = item
             break
         end
     end
-    
+
     return found
 end
 
@@ -60,13 +60,15 @@ TestActions = {
     SHOOT_LEFT = "shootLeft",
     SHOOT_UP = "shootUp",
     SHOOT_DOWN = "shootDown",
-    USE_PILL_CARD = "usePillCard",
+    USE_CARD = "useCard",
     USE_BOMB = "useBomb",
     USE_ITEM = "useItem",
-    DROP_PILL_CARD = "dropPillCard",
+    DROP_POCKET_ITEM = "dropPocketItem",
+    DROP_TRINKET = "dropTrinket",
     RUN_COMMAND = "runCommand",
     GIVE_CARD = "giveCard",
     GIVE_ITEM = "giveItem",
+    GIVE_TRINKET = "giveTrinket",
     WAIT_FOR_KEY = "waitForKey",
     ENABLE_DEBUG_FLAG = "enableDebugFlag",
     DISABLE_DEBUG_FLAG = "disableDebugFlag",
@@ -227,12 +229,40 @@ local giveItem = function(arguments, next)
     delay(0, next)
 end
 
-local usePillCard = function(arguments, next)
-    table.insert(shouldActions, {
-        action = TestActions.USE_PILL_CARD,
-        playerIndex = arguments.playerIndex or 0
-    })
-    delay(GetAsyncOrDelay(arguments, 13), next, true)
+local giveTrinket = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:AddTrinket(arguments.id)
+    delay(0, next)
+end
+
+local useCard = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    local cardId
+
+    if arguments.id then
+        cardId = arguments.id
+    else
+        local card = player:GetCard(arguments.slot or 0)
+        if card ~= 0 then
+            cardId = card
+        end
+    end
+
+    if cardId then
+        player:UseCard(cardId)
+
+        if arguments.slot then
+            for i = arguments.slot, 3 do
+                player:SetCard(i, player:GetCard(i + 1))
+            end
+        end
+
+        delay(GetAsyncOrDelay(arguments, 13), next, true)
+    else
+        delay(0, next)
+    end
 end
 
 local useBomb = function(arguments, next)
@@ -251,14 +281,18 @@ local useItem = function(arguments, next)
     delay(GetAsyncOrDelay(arguments, 18), next, true)
 end
 
-local dropPillCard = function(arguments, next)
-    local framesCount = 2.5 * 30
-    table.insert(shouldActions, {
-        action = TestActions.DROP_PILL_CARD,
-        frames = framesCount,
-        playerIndex = arguments.playerIndex or 0
-    })
-    delay(GetAsyncOrDelay(arguments, framesCount), next, true)
+local dropPocketItem = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:DropPocketItem(arguments.slot or 0, player.Position)
+    delay(0, next)
+end
+
+local dropTrinket = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:DropTrinket(player.Position)
+    delay(0, next)
 end
 
 local waitForKey = function(arguments, next)
@@ -266,7 +300,7 @@ local waitForKey = function(arguments, next)
         action = TestActions.WAIT_FOR_KEY,
         key = arguments.key
     })
-    delay(0, next, true)
+    delay(0, next)
 end
 
 local toggleDebugFlag = function(debugFlag)
@@ -391,12 +425,14 @@ local TestSteps = {
     [TestActions.SHOOT_RIGHT] = shootRight,
     [TestActions.SHOOT_DOWN] = shootDown,
     [TestActions.USE_ITEM] = useItem,
-    [TestActions.USE_PILL_CARD] = usePillCard,
+    [TestActions.USE_CARD] = useCard,
     [TestActions.USE_BOMB] = useBomb,
-    [TestActions.DROP_PILL_CARD] = dropPillCard,
+    [TestActions.DROP_POCKET_ITEM] = dropPocketItem,
+    [TestActions.DROP_TRINKET] = dropTrinket,
     [TestActions.RUN_COMMAND] = runCommand,
     [TestActions.GIVE_CARD] = giveCard,
     [TestActions.GIVE_ITEM] = giveItem,
+    [TestActions.GIVE_TRINKET] = giveTrinket,
     [TestActions.WAIT_FOR_KEY] = waitForKey,
     [TestActions.ENABLE_DEBUG_FLAG] = enableDebugFlag,
     [TestActions.DISABLE_DEBUG_FLAG] = disableDebugFlag,
@@ -569,7 +605,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
 
             -- Use pill/card
             if buttonAction == ButtonAction.ACTION_PILLCARD then
-                local test = GetTestFromAction(TestActions.USE_PILL_CARD, player)
+                local test = GetTestFromAction(TestActions.USE_CARD, player)
 
                 if test then
                     RemoveElement(shouldActions, test)
@@ -663,15 +699,6 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                     return 1
                 end
             end
-
-            -- Drop pill/card/trinkets
-            if buttonAction == ButtonAction.ACTION_DROP then
-                local test = GetTestFromAction(TestActions.DROP_PILL_CARD, player)
-
-                if test then
-                    return 1
-                end
-            end
         end
     end
 end)
@@ -729,15 +756,74 @@ Test.RegisterTests("cards", {
         arguments = {}
     },
     {
-        action = TestActions.GIVE_CARD,
+        action = TestActions.GIVE_ITEM,
         arguments = {
-            id = 2,
-            delay = 2
+            id = 251
         }
     },
     {
-        action = TestActions.USE_PILL_CARD,
+        action = TestActions.GIVE_CARD,
         arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 3
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.USE_CARD,
+        arguments = {
+            slot = 0
+        }
+    },
+})
+
+Test.RegisterTests("cards2", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+            id = 19
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 3,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.USE_CARD,
+        arguments = {
+            slot = 0,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.USE_CARD,
+        arguments = {
+            slot = 0
         }
     },
 })
@@ -1125,6 +1211,116 @@ Test.RegisterTests("swapSubPlayers", {
     {
         action = TestActions.SWAP_SUB_PLAYERS,
         arguments = {
+        }
+    }
+})
+
+Test.RegisterTests("drop", {
+    {
+        action = TestActions.RESTART,
+        arguments = {
+            id = 0
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_TRINKET,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.DROP_POCKET_ITEM,
+        arguments = {}
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_ITEM,
+        arguments = {
+            id = 251
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 2
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.DROP_POCKET_ITEM,
+        arguments = {
+            slot = 1
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.DROP_TRINKET,
+        arguments = {
+            slot = 1
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_KEY,
+        arguments = {
+            key = Keyboard.KEY_ENTER,
+        }
+    },
+    {
+        action = TestActions.RESTART,
+        arguments = {
+            id = 19
+        }
+    },
+    {
+        action = TestActions.GIVE_CARD,
+        arguments = {
+            id = 1,
+            playerIndex = 1
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1,
+        }
+    },
+    {
+        action = TestActions.DROP_POCKET_ITEM,
+        arguments = {
+            playerIndex = 1
         }
     }
 })
