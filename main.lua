@@ -70,6 +70,7 @@ TestActions = {
     SHOOT_UP = "shootUp",
     SHOOT_DOWN = "shootDown",
     USE_CARD = "useCard",
+    USE_PILL = "usePill",
     USE_BOMB = "useBomb",
     USE_ITEM = "useItem",
     DROP_POCKET_ITEM = "dropPocketItem",
@@ -77,6 +78,7 @@ TestActions = {
     RUN_COMMAND = "runCommand",
     GIVE_CARD = "giveCard",
     GIVE_ITEM = "giveItem",
+    GIVE_PILL = "givePill",
     GIVE_TRINKET = "giveTrinket",
     WAIT_FOR_KEY = "waitForKey",
     ENABLE_DEBUG_FLAG = "enableDebugFlag",
@@ -271,6 +273,13 @@ local giveCard = function(arguments, next)
     delay(0, next)
 end
 
+local givePill = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    player:AddPill(arguments.color)
+    delay(0, next)
+end
+
 local giveItem = function(arguments, next)
     local player = Isaac.GetPlayer(arguments.playerIndex or 0)
 
@@ -305,6 +314,38 @@ local useCard = function(arguments, next)
         if arguments.slot then
             for i = arguments.slot, 3 do
                 player:SetCard(i, player:GetCard(i + 1))
+            end
+        end
+
+        delay(GetAsyncOrDelay(arguments, 13), next, true)
+    else
+        delay(0, next)
+    end
+end
+
+local usePill = function(arguments, next)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    local pillId
+    local pillColor
+
+    if arguments.id then
+        pillId = arguments.id
+        pillColor = arguments.color or 0
+    else
+        local pill = player:GetPill(arguments.slot or 0)
+        if pill ~= 0 then
+            pillColor = pill
+            pillId = Game():GetItemPool():GetPillEffect(pillColor, player)
+        end
+    end
+
+    if pillId then
+        player:UsePill(pillId, pillColor or 0)
+
+        if arguments.slot then
+            for i = arguments.slot, 3 do
+                player:SetPill(i, player:GetPill(i + 1))
             end
         end
 
@@ -475,12 +516,14 @@ local TestSteps = {
     [TestActions.SHOOT_DOWN] = shootDown,
     [TestActions.USE_ITEM] = useItem,
     [TestActions.USE_CARD] = useCard,
+    [TestActions.USE_PILL] = usePill,
     [TestActions.USE_BOMB] = useBomb,
     [TestActions.DROP_POCKET_ITEM] = dropPocketItem,
     [TestActions.DROP_TRINKET] = dropTrinket,
     [TestActions.RUN_COMMAND] = runCommand,
     [TestActions.GIVE_CARD] = giveCard,
     [TestActions.GIVE_ITEM] = giveItem,
+    [TestActions.GIVE_PILL] = givePill,
     [TestActions.GIVE_TRINKET] = giveTrinket,
     [TestActions.WAIT_FOR_KEY] = waitForKey,
     [TestActions.ENABLE_DEBUG_FLAG] = enableDebugFlag,
@@ -830,6 +873,31 @@ Test.RegisterTest("cards", {
     },
     {
         action = TestActions.USE_CARD,
+        arguments = {
+            slot = 0
+        }
+    },
+})
+
+Test.RegisterTest("pills", {
+    {
+        action = TestActions.RESTART,
+        arguments = {}
+    },
+    {
+        action = TestActions.GIVE_PILL,
+        arguments = {
+            color = 2
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.USE_PILL,
         arguments = {
             slot = 0
         }
@@ -1370,47 +1438,6 @@ Test.RegisterTest("drop", {
         action = TestActions.DROP_POCKET_ITEM,
         arguments = {
             playerIndex = 1
-        }
-    }
-})
-
-Test.RegisterTests("lootdeck", {
-    {
-        name = "penny",
-        steps = {
-            {
-                name = "penny2",
-                steps = {
-                    {
-                        action = TestActions.SHOOT_RIGHT,
-                        arguments = {
-                            seconds = 1
-                        }
-                    }
-                }
-            },
-            {
-                name = "penny3",
-                steps = {
-                    {
-                        action = TestActions.SHOOT_UP,
-                        arguments = {
-                            seconds = 1
-                        }
-                    }
-                }
-            }
-        }
-    },
-    {
-        name = "twoCents",
-        steps = {
-            {
-                action = TestActions.SHOOT_LEFT,
-                arguments = {
-                    seconds = 1
-                }
-            }
         }
     }
 })
