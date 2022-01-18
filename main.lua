@@ -311,10 +311,8 @@ local useCard = function(arguments, next)
     if cardId then
         player:UseCard(cardId)
 
-        if arguments.slot then
-            for i = arguments.slot, 3 do
-                player:SetCard(i, player:GetCard(i + 1))
-            end
+        for i = (arguments.slot or 0), 3 do
+            player:SetCard(i, player:GetCard(i + 1))
         end
 
         delay(GetAsyncOrDelay(arguments, 13), next, true)
@@ -343,10 +341,8 @@ local usePill = function(arguments, next)
     if pillId then
         player:UsePill(pillId, pillColor or 0)
 
-        if arguments.slot then
-            for i = arguments.slot, 3 do
-                player:SetPill(i, player:GetPill(i + 1))
-            end
+        for i = (arguments.slot or 0), 3 do
+            player:SetPill(i, player:GetPill(i + 1))
         end
 
         delay(GetAsyncOrDelay(arguments, 13), next, true)
