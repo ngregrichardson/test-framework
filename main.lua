@@ -13,6 +13,15 @@ function table.deepCopy(original)
 	return copy
 end
 
+function table.isArray(t)
+    local i = 0
+    for _ in pairs(t) do
+        i = i + 1
+        if t[i] == nil then return false end
+    end
+    return true
+end
+
 local function FindEntryByProperties(t, props)
     local found
 	for _, item in pairs(t) do
@@ -84,8 +93,30 @@ TestActions = {
     SWAP = "swap"
 }
 
-function Test.RegisterTests(name, tests)
+function Test.RegisterTest(name, tests)
     registeredTests[name] = tests
+
+    return tests
+end
+
+function Test.RegisterTests(name, tests, awaitStep)
+    local finalSteps = {}
+
+    for _, test in pairs(tests) do
+        local results = Test.RegisterTest(test.name, test.steps)
+
+        if results then
+            for _, newStep in pairs(results) do
+                table.insert(finalSteps, newStep)
+            end
+        end
+
+        table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, arguments = { key = Keyboard.KEY_ENTER } })
+    end
+
+    Test.RegisterTest(name, finalSteps)
+
+    return finalSteps
 end
 
 local initialDelayConfig = {
@@ -750,7 +781,7 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
     end
 end)
 
-Test.RegisterTests("cards", {
+Test.RegisterTest("cards", {
     {
         action = TestActions.RESTART,
         arguments = {}
@@ -787,7 +818,7 @@ Test.RegisterTests("cards", {
     },
 })
 
-Test.RegisterTests("cards2", {
+Test.RegisterTest("cards2", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -828,7 +859,7 @@ Test.RegisterTests("cards2", {
     },
 })
 
-Test.RegisterTests("items", {
+Test.RegisterTest("items", {
     {
         action = TestActions.RESTART,
         arguments = {}
@@ -847,7 +878,7 @@ Test.RegisterTests("items", {
     },
 })
 
-Test.RegisterTests("bombs", {
+Test.RegisterTest("bombs", {
     {
         action = TestActions.RESTART,
         arguments = {}
@@ -870,7 +901,7 @@ Test.RegisterTests("bombs", {
     }
 })
 
-Test.RegisterTests("movement", {
+Test.RegisterTest("movement", {
     {
         action = TestActions.RESTART,
         arguments = {}
@@ -902,7 +933,7 @@ Test.RegisterTests("movement", {
     }
 })
 
-Test.RegisterTests("movement2", {
+Test.RegisterTest("movement2", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -969,7 +1000,7 @@ Test.RegisterTests("movement2", {
     }
 })
 
-Test.RegisterTests("shooting", {
+Test.RegisterTest("shooting", {
     {
         action = TestActions.RESTART,
         arguments = {}
@@ -1000,7 +1031,7 @@ Test.RegisterTests("shooting", {
     },
 })
 
-Test.RegisterTests("key", {
+Test.RegisterTest("key", {
     {
         action = TestActions.WAIT_FOR_KEY,
         arguments = {
@@ -1015,7 +1046,7 @@ Test.RegisterTests("key", {
     }
 })
 
-Test.RegisterTests("seconds", {
+Test.RegisterTest("seconds", {
     {
         action = TestActions.WAIT_FOR_SECONDS,
         arguments = {
@@ -1030,7 +1061,7 @@ Test.RegisterTests("seconds", {
     }
 })
 
-Test.RegisterTests("swapCards", {
+Test.RegisterTest("swapCards", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -1067,7 +1098,7 @@ Test.RegisterTests("swapCards", {
     }
 })
 
-Test.RegisterTests("swapItems", {
+Test.RegisterTest("swapItems", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -1104,7 +1135,7 @@ Test.RegisterTests("swapItems", {
     }
 })
 
-Test.RegisterTests("swap", {
+Test.RegisterTest("swap", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -1159,7 +1190,7 @@ Test.RegisterTests("swap", {
     }
 })
 
-Test.RegisterTests("swapSubPlayers", {
+Test.RegisterTest("swapSubPlayers", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -1215,7 +1246,7 @@ Test.RegisterTests("swapSubPlayers", {
     }
 })
 
-Test.RegisterTests("drop", {
+Test.RegisterTest("drop", {
     {
         action = TestActions.RESTART,
         arguments = {
@@ -1321,6 +1352,31 @@ Test.RegisterTests("drop", {
         action = TestActions.DROP_POCKET_ITEM,
         arguments = {
             playerIndex = 1
+        }
+    }
+})
+
+Test.RegisterTests("lootdeck", {
+    {
+        name = "penny",
+        steps = {
+            {
+                action = TestActions.SHOOT_RIGHT,
+                arguments = {
+                    seconds = 1
+                }
+            }
+        }
+    },
+    {
+        name = "twoCents",
+        steps = {
+            {
+                action = TestActions.SHOOT_LEFT,
+                arguments = {
+                    seconds = 1
+                }
+            }
         }
     }
 })
