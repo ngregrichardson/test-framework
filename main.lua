@@ -93,6 +93,16 @@ TestActions = {
     SWAP = "swap"
 }
 
+local function IncludesMultipleTests(tests)
+    for _, test in pairs(tests) do
+        if not test.name then
+            return false
+        end
+    end
+
+    return true
+end
+
 function Test.RegisterTest(name, tests)
     registeredTests[name] = tests
 
@@ -102,8 +112,14 @@ end
 function Test.RegisterTests(name, tests, awaitStep)
     local finalSteps = {}
 
-    for _, test in pairs(tests) do
-        local results = Test.RegisterTest(test.name, test.steps)
+    for index, test in pairs(tests) do
+        local results
+
+        if IncludesMultipleTests(test.steps) then
+            results = Test.RegisterTests(test.name, test.steps, awaitStep)
+        else
+            results = Test.RegisterTest(test.name, test.steps)
+        end
 
         if results then
             for _, newStep in pairs(results) do
@@ -111,7 +127,9 @@ function Test.RegisterTests(name, tests, awaitStep)
             end
         end
 
-        table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, arguments = { key = Keyboard.KEY_ENTER } })
+        if index < #tests then
+            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, arguments = { key = Keyboard.KEY_ENTER } })
+        end
     end
 
     Test.RegisterTest(name, finalSteps)
@@ -1361,9 +1379,25 @@ Test.RegisterTests("lootdeck", {
         name = "penny",
         steps = {
             {
-                action = TestActions.SHOOT_RIGHT,
-                arguments = {
-                    seconds = 1
+                name = "penny2",
+                steps = {
+                    {
+                        action = TestActions.SHOOT_RIGHT,
+                        arguments = {
+                            seconds = 1
+                        }
+                    }
+                }
+            },
+            {
+                name = "penny3",
+                steps = {
+                    {
+                        action = TestActions.SHOOT_UP,
+                        arguments = {
+                            seconds = 1
+                        }
+                    }
                 }
             }
         }
