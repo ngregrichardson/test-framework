@@ -614,15 +614,15 @@ local function createRunChain(steps, next)
             return
         end
 
-        if step.action == TestActions.REPEAT then
+        if step.action == TestActions.REPEAT and step.arguments.steps then
             local repeatSteps = {}
 
-            for j = 1, step.arguments.times do
+            for j = 1, step.arguments.times or 1 do
                 for _, repeatedStep in pairs(step.arguments.steps) do
                     table.insert(repeatSteps, repeatedStep)
                 end
             end
-            nextStep = createRunChain(repeatSteps)
+            nextStep = createRunChain(repeatSteps, nextStep)
 
             goto continue
         end
@@ -1537,7 +1537,7 @@ Test.RegisterTest("repeat", {
     {
         action = TestActions.REPEAT,
         arguments = {
-            times = 5,
+            times = 2,
             steps = {
                 {
                     action = TestActions.USE_CARD,
@@ -1552,6 +1552,12 @@ Test.RegisterTest("repeat", {
                     }
                 }
             }
+        }
+    },
+    {
+        action = TestActions.SHOOT_DOWN,
+        arguments = {
+            seconds = 1
         }
     }
 })
