@@ -627,7 +627,7 @@ local function createRunChain(steps, next)
             goto continue
         end
 
-        if i == #steps then
+        if i == #steps and step.arguments then
             step.arguments.async = nil
         end
 
