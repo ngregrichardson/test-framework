@@ -352,19 +352,43 @@ local usePill = function(arguments, next)
 end
 
 local useBomb = function(arguments, next)
-    table.insert(shouldActions, {
-        action = TestActions.USE_BOMB,
-        playerIndex = arguments.playerIndex or 0
-    })
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    if arguments.force or player:GetNumBombs() > 0 then
+        player:FireBomb(player.Position, Vector.Zero, player)
+        player:AddBombs(-1)
+    end
+
     delay(GetAsyncOrDelay(arguments, 60), next, true)
 end
 
 local useItem = function(arguments, next)
-    table.insert(shouldActions, {
-        action = TestActions.USE_ITEM,
-        playerIndex = arguments.playerIndex or 0
-    })
-    delay(GetAsyncOrDelay(arguments, 18), next, true)
+    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+
+    local itemId
+    local itemSlot
+
+    if arguments.id then
+        itemId = arguments.id
+    else
+        local item = player:GetActiveItem(arguments.slot or 0)
+        if item ~= 0 then
+            itemId = item
+            itemSlot = arguments.slot or 0
+        end
+    end
+
+    if itemId and (arguments.force or not itemSlot or not player:NeedsCharge(itemSlot)) then
+        player:UseActiveItem(itemId, 0, itemSlot or -1)
+        
+        if itemSlot then
+            player:DischargeActiveItem(itemSlot)
+        end
+
+        delay(GetAsyncOrDelay(arguments, 18), next, true)
+    else
+        delay(0, next)
+    end
 end
 
 local dropPocketItem = function(arguments, next)
@@ -690,37 +714,6 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
         end
 
         if inputHook == InputHook.IS_ACTION_TRIGGERED then
-
-            -- Use pill/card
-            if buttonAction == ButtonAction.ACTION_PILLCARD then
-                local test = GetTestFromAction(TestActions.USE_CARD, player)
-
-                if test then
-                    RemoveElement(shouldActions, test)
-                    return true
-                end
-            end
-
-            -- Use bomb
-            if buttonAction == ButtonAction.ACTION_BOMB then
-                local test = GetTestFromAction(TestActions.USE_BOMB, player)
-
-                if test then
-                    RemoveElement(shouldActions, test)
-                    return true
-                end
-            end
-
-            -- Use item
-            if buttonAction == ButtonAction.ACTION_ITEM then
-                local test = GetTestFromAction(TestActions.USE_ITEM, player)
-
-                if test then
-                    RemoveElement(shouldActions, test)
-                    return true
-                end
-            end
-
             -- Swap cards/items
             if buttonAction == ButtonAction.ACTION_DROP then
                 local test = GetTestFromAction(TestActions.SWAP, player)
@@ -949,13 +942,43 @@ Test.RegisterTest("items", {
     {
         action = TestActions.GIVE_ITEM,
         arguments = {
-            id = 126,
-            delay = 2
+            id = 650
+        }
+    },
+    {
+        action = TestActions.ENABLE_DEBUG_FLAG,
+        arguments = {
+            flag = 8
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.DISABLE_DEBUG_FLAG,
+        arguments = {
+            flag = 8
         }
     },
     {
         action = TestActions.USE_ITEM,
         arguments = {
+            force = true
+        }
+    },
+    {
+        action = TestActions.WAIT_FOR_SECONDS,
+        arguments = {
+            seconds = 1
+        }
+    },
+    {
+        action = TestActions.USE_ITEM,
+        arguments = {
+            id = 126
         }
     },
 })
@@ -966,21 +989,30 @@ Test.RegisterTest("bombs", {
         arguments = {}
     },
     {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 190
-        }
-    },
-    {
         action = TestActions.USE_BOMB,
-        arguments = {}
+        arguments = {
+            async = true
+        }
     },
     {
         action = TestActions.MOVE_UP,
         arguments = {
             seconds = 0.7
         }
-    }
+    },
+    {
+        action = TestActions.USE_BOMB,
+        arguments = {
+            force = true,
+            async = true
+        }
+    },
+    {
+        action = TestActions.MOVE_DOWN,
+        arguments = {
+            seconds = 0.7
+        }
+    },
 })
 
 Test.RegisterTest("movement", {
