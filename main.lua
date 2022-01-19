@@ -78,7 +78,7 @@ function Test.RegisterTests(name, tests, awaitStep)
         end
 
         if index < #tests then
-            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, arguments = { key = Keyboard.KEY_ENTER } })
+            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER })
         end
     end
 
@@ -419,7 +419,7 @@ local spawn = function(arguments, next)
     delay(0, next)
 end
 
-local repeatStep = function(arguments, next)
+local repeatStep = function(_, next)
     delay(0, next)
 end
 
@@ -553,11 +553,11 @@ local function createRunChain(steps, next)
             return
         end
 
-        if step.action == TestActions.REPEAT and step.arguments.steps then
+        if step.action == TestActions.REPEAT and step.steps then
             local repeatSteps = {}
 
-            for j = 1, step.arguments.times or 1 do
-                for _, repeatedStep in pairs(step.arguments.steps) do
+            for j = 1, step.times or 1 do
+                for _, repeatedStep in pairs(step.steps) do
                     table.insert(repeatSteps, repeatedStep)
                 end
             end
@@ -566,12 +566,12 @@ local function createRunChain(steps, next)
             goto continue
         end
 
-        if i == #steps and step.arguments then
-            step.arguments.async = nil
+        if i == #steps and step then
+            step.async = nil
         end
 
         nextStep = function()
-            TestSteps[step.action](step.arguments or {}, tempNextStep)
+            TestSteps[step.action](step or {}, tempNextStep)
         end
 
         ::continue::
