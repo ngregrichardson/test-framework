@@ -2,120 +2,59 @@ TestingMod = RegisterMod("Testing Framework", 1)
 local font = Font()
 font:Load("font/terminus.fnt")
 
-function table.deepCopy(original)
-	local copy = {}
-	for k, v in pairs(original) do
-		if type(v) == "table" then
-			v = table.deepCopy(v)
-		end
-		copy[k] = v
-	end
-	return copy
-end
-
-function table.isArray(t)
-    local i = 0
-    for _ in pairs(t) do
-        i = i + 1
-        if t[i] == nil then return false end
-    end
-    return true
-end
-
-function string.toPercentage(s)
-    local matched = s:match("(.*)%%")
-    matched = matched:gsub("%s+", "")
-    if tonumber(matched) then
-        return (tonumber(matched) / 100)
-    end
-end
-
-local function FindEntryByProperties(t, props)
-    local found
-	for _, item in pairs(t) do
-	    local foundAll = true
-	    for key, value in pairs(props) do
-            if item[key] ~= value then
-                foundAll = false
-                break
-            end
-        end
-
-        if foundAll then
-            found = item
-            break
-        end
-    end
-
-    return found
-end
-
-local function RemoveElement(t, element)
-    local indexOf
-
-    for i, v in ipairs(t) do
-        if v == element then
-            indexOf = i
-        end
-    end
-
-    if indexOf then
-        table.remove(t, indexOf)
-    end
-end
+local json = include("json")
+local helpers = include("helpers")
 
 local registeredTests = {}
+
+if TestingMod:HasData() then
+    registeredTests = json.decode(TestingMod:LoadData())
+end
 
 Test = {}
 
 TestActions = {
-    MOVE_RIGHT = "moveRight",
-    MOVE_LEFT = "moveLeft",
-    MOVE_UP = "moveUp",
-    MOVE_DOWN = "moveDown",
-    SHOOT_RIGHT = "shootRight",
-    SHOOT_LEFT = "shootLeft",
-    SHOOT_UP = "shootUp",
-    SHOOT_DOWN = "shootDown",
-    USE_CARD = "useCard",
-    USE_PILL = "usePill",
-    USE_BOMB = "useBomb",
-    USE_ITEM = "useItem",
-    DROP_POCKET_ITEM = "dropPocketItem",
-    DROP_TRINKET = "dropTrinket",
-    RUN_COMMAND = "runCommand",
-    GIVE_CARD = "giveCard",
-    GIVE_ITEM = "giveItem",
-    GIVE_PILL = "givePill",
-    GIVE_TRINKET = "giveTrinket",
-    WAIT_FOR_KEY = "waitForKey",
-    ENABLE_DEBUG_FLAG = "enableDebugFlag",
-    DISABLE_DEBUG_FLAG = "disableDebugFlag",
-    EXECUTE_LUA = "executeLua",
-    RESTART = "restart",
-    SPAWN = "spawn",
-    WAIT_FOR_SECONDS = "waitForSeconds",
-    WAIT_FOR_FRAMES = "waitForFrames",
-    REPEAT = "repeat",
-    SWAP_PILL_CARDS = "swapPillCards",
-    SWAP_ACTIVE_ITEMS = "swapActiveItems",
-    SWAP_SUB_PLAYERS = "swapSubPlayers",
-    SWAP = "swap",
-    TELEPORT_TO_POSITION = "teleportToPosition"
+    MOVE_RIGHT = "MOVE_RIGHT",
+    MOVE_LEFT = "MOVE_LEFT",
+    MOVE_UP = "MOVE_UP",
+    MOVE_DOWN = "MOVE_DOWN",
+    SHOOT_RIGHT = "SHOOT_RIGHT",
+    SHOOT_LEFT = "SHOOT_LEFT",
+    SHOOT_UP = "SHOOT_UP",
+    SHOOT_DOWN = "SHOOT_DOWN",
+    USE_CARD = "USE_CARD",
+    USE_PILL = "USE_PILL",
+    USE_BOMB = "USE_BOMB",
+    USE_ITEM = "USE_ITEM",
+    DROP_POCKET_ITEM = "DROP_POCKET_ITEM",
+    DROP_TRINKET = "DROP_TRINKET",
+    RUN_COMMAND = "RUN_COMMAND",
+    GIVE_CARD = "GIVE_CARD",
+    GIVE_ITEM = "GIVE_ITEM",
+    GIVE_PILL = "GIVE_PILL",
+    GIVE_TRINKET = "GIVE_TRINKET",
+    WAIT_FOR_KEY = "WAIT_FOR_KEY",
+    ENABLE_DEBUG_FLAG = "ENABLE_DEBUG_FLAG",
+    DISABLE_DEBUG_FLAG = "DISABLE_DEBUG_FLAG",
+    EXECUTE_LUA = "EXECUTE_LUA",
+    RESTART = "RESTART",
+    SPAWN = "SPAWN",
+    WAIT_FOR_SECONDS = "WAIT_FOR_SECONDS",
+    WAIT_FOR_FRAMES = "WAIT_FOR_FRAMES",
+    REPEAT = "REPEAT",
+    SWAP_PILL_CARDS = "SWAP_PILL_CARDS",
+    SWAP_ACTIVE_ITEMS = "SWAP_ACTIVE_ITEMS",
+    SWAP_SUB_PLAYERS = "SWAP_SUB_PLAYERS",
+    SWAP = "SWAP",
+    TELEPORT_TO_POSITION = "TELEPORT_TO_POSITION"
 }
 
-local function IncludesMultipleTests(tests)
-    for _, test in pairs(tests) do
-        if not test.name then
-            return false
-        end
-    end
-
-    return true
-end
-
-function Test.RegisterTest(name, tests)
+function Test.RegisterTest(name, tests, shouldSave)
     registeredTests[name] = tests
+
+    if shouldSave == nil or shouldSave then
+        TestingMod:SaveData(json.encode(registeredTests))
+    end
 
     return tests
 end
@@ -126,10 +65,10 @@ function Test.RegisterTests(name, tests, awaitStep)
     for index, test in pairs(tests) do
         local results
 
-        if IncludesMultipleTests(test.steps) then
+        if helpers.IncludesMultipleTests(test.steps) then
             results = Test.RegisterTests(test.name, test.steps, awaitStep)
         else
-            results = Test.RegisterTest(test.name, test.steps)
+            results = Test.RegisterTest(test.name, test.steps, false)
         end
 
         if results then
@@ -155,7 +94,7 @@ local initialDelayConfig = {
 
 local shouldActions = {}
 
-local delayConfig = table.deepCopy(initialDelayConfig)
+local delayConfig = helpers.DeepCopyTable(initialDelayConfig)
 
 local GetAsyncOrDelay = function(arguments, value)
     if arguments.async then
@@ -169,7 +108,7 @@ end
 
 local stop = function()
     shouldActions = {}
-    delayConfig = table.deepCopy(initialDelayConfig)
+    delayConfig = helpers.DeepCopyTable(initialDelayConfig)
 end
 
 local delay = function(value, callback, inFrames)
@@ -544,7 +483,7 @@ local teleportToPosition = function(arguments, next)
     if type(arguments.x) == "number" then
         position.X = arguments.x
     elseif type(arguments.x) == "string" then
-        local percentage = arguments.x:toPercentage()
+        local percentage = helpers.ParsePercentage(arguments.x)
 
         if percentage then
             position.X = bottomRight.X * percentage
@@ -554,7 +493,7 @@ local teleportToPosition = function(arguments, next)
     if type(arguments.y) == "number" then
         position.Y = arguments.y
     elseif type(arguments.y) == "string" then
-        local percentage = arguments.y:toPercentage()
+        local percentage = helpers.ParsePercentage(arguments.x)
 
         if percentage then
             position.Y = bottomRight.Y * percentage
@@ -647,21 +586,10 @@ local function run(steps)
     nextStep()
 end
 
-local function GetTruePlayerIndex(player)
-    if player then
-        for i = 0, Game():GetNumPlayers() - 1 do
-            local p = Isaac.GetPlayer(i)
-            if player.InitSeed == p.InitSeed then
-                return i
-            end
-        end
-    end
-end
-
 local function GetTestFromAction(action, player)
-    local truePlayerIndex = GetTruePlayerIndex(player)
+    local truePlayerIndex = helpers.GetTruePlayerIndex(player)
 
-    return FindEntryByProperties(shouldActions, { action = action, playerIndex = truePlayerIndex })
+    return helpers.FindTableEntryByProperty(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
 
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
@@ -769,7 +697,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 if test then
                     local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
                     if not isForgotten or (isForgotten and test.shouldRemove) then
-                        RemoveElement(shouldActions, test)
+                        helpers.RemoveElementFromTable(shouldActions, test)
                     else
                         test.shouldRemove = true
                     end
@@ -784,7 +712,7 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
                 if test then
                     local isForgotten = player.SubType == PlayerType.PLAYER_THEFORGOTTEN or player.SubType == PlayerType.PLAYER_THESOUL
                     if isForgotten then
-                        RemoveElement(shouldActions, test)
+                        helpers.RemoveElementFromTable(shouldActions, test)
                         return true
                     end
                 end
@@ -852,10 +780,10 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
     delayConfig.frames = math.max(0, delayConfig.frames - 1)
 
-    local waitForKeyTest = FindEntryByProperties(shouldActions, { action = TestActions.WAIT_FOR_KEY })
+    local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
 
     if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
-        RemoveElement(shouldActions, waitForKeyTest)
+        helpers.RemoveElementFromTable(shouldActions, waitForKeyTest)
 
         if delayConfig.next then
             delayConfig.next()
@@ -879,685 +807,4 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
     end
 end)
 
-Test.RegisterTest("cards", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 251
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 3
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.USE_CARD,
-        arguments = {
-            slot = 0
-        }
-    },
-})
-
-Test.RegisterTest("pills", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.GIVE_PILL,
-        arguments = {
-            color = 2
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.USE_PILL,
-        arguments = {
-            slot = 0
-        }
-    },
-})
-
-Test.RegisterTest("cards2", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-            id = 19
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 3,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.USE_CARD,
-        arguments = {
-            slot = 0,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.USE_CARD,
-        arguments = {
-            slot = 0
-        }
-    },
-})
-
-Test.RegisterTest("items", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 650
-        }
-    },
-    {
-        action = TestActions.ENABLE_DEBUG_FLAG,
-        arguments = {
-            flag = 8
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.DISABLE_DEBUG_FLAG,
-        arguments = {
-            flag = 8
-        }
-    },
-    {
-        action = TestActions.USE_ITEM,
-        arguments = {
-            force = true
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.USE_ITEM,
-        arguments = {
-            id = 126
-        }
-    },
-})
-
-Test.RegisterTest("bombs", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.USE_BOMB,
-        arguments = {
-            async = true
-        }
-    },
-    {
-        action = TestActions.MOVE_UP,
-        arguments = {
-            seconds = 0.7
-        }
-    },
-    {
-        action = TestActions.USE_BOMB,
-        arguments = {
-            force = true,
-            async = true
-        }
-    },
-    {
-        action = TestActions.MOVE_DOWN,
-        arguments = {
-            seconds = 0.7
-        }
-    },
-})
-
-Test.RegisterTest("movement", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.MOVE_LEFT,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.MOVE_UP,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.MOVE_RIGHT,
-        arguments = {
-            seconds = 1,
-            async = true
-        }
-    },
-    {
-        action = TestActions.MOVE_DOWN,
-        arguments = {
-            seconds = 1
-        }
-    }
-})
-
-Test.RegisterTest("movement2", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-            id = 19
-        }
-    },
-    {
-        action = TestActions.MOVE_LEFT,
-        arguments = {
-            seconds = 1,
-            async = true
-        }
-    },
-    {
-        action = TestActions.MOVE_RIGHT,
-        arguments = {
-            seconds = 1,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.MOVE_UP,
-        arguments = {
-            seconds = 1,
-            async = true
-        }
-    },
-        {
-        action = TestActions.MOVE_UP,
-        arguments = {
-            seconds = 1,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.MOVE_RIGHT,
-        arguments = {
-            seconds = 1,
-            async = true
-        }
-    },
-    {
-        action = TestActions.MOVE_DOWN,
-        arguments = {
-            seconds = 1,
-            async = true
-        }
-    },
-        {
-        action = TestActions.MOVE_LEFT,
-        arguments = {
-            seconds = 1,
-            async = true,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.MOVE_DOWN,
-        arguments = {
-            seconds = 1,
-            playerIndex = 1,
-            async = true
-        }
-    }
-})
-
-Test.RegisterTest("shooting", {
-    {
-        action = TestActions.RESTART,
-        arguments = {}
-    },
-    {
-        action = TestActions.SHOOT_RIGHT,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SHOOT_DOWN,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SHOOT_LEFT,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SHOOT_UP,
-        arguments = {
-            seconds = 1
-        }
-    },
-})
-
-Test.RegisterTest("key", {
-    {
-        action = TestActions.WAIT_FOR_KEY,
-        arguments = {
-            key = Keyboard.KEY_ENTER
-        }
-    },
-    {
-        action = TestActions.SHOOT_RIGHT,
-        arguments = {
-            seconds = 1
-        }
-    }
-})
-
-Test.RegisterTest("seconds", {
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 5
-        }
-    },
-    {
-        action = TestActions.SHOOT_RIGHT,
-        arguments = {
-            seconds = 1
-        }
-    }
-})
-
-Test.RegisterTest("swapCards", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 251
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SWAP_PILL_CARDS,
-        arguments = {
-        }
-    }
-})
-
-Test.RegisterTest("swapItems", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 534
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 650
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 84
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SWAP_ACTIVE_ITEMS,
-        arguments = {
-        }
-    }
-})
-
-Test.RegisterTest("swap", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 534
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 251
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 650
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 84
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SWAP,
-        arguments = {
-        }
-    }
-})
-
-Test.RegisterTest("swapSubPlayers", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-            id = 16
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 534
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 251
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 650
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 84
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.SWAP_SUB_PLAYERS,
-        arguments = {
-        }
-    }
-})
-
-Test.RegisterTest("drop", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-            id = 0
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_TRINKET,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.DROP_POCKET_ITEM,
-        arguments = {}
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_ITEM,
-        arguments = {
-            id = 251
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 2
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.DROP_POCKET_ITEM,
-        arguments = {
-            slot = 1
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1
-        }
-    },
-    {
-        action = TestActions.DROP_TRINKET,
-        arguments = {
-            slot = 1
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_KEY,
-        arguments = {
-            key = Keyboard.KEY_ENTER,
-        }
-    },
-    {
-        action = TestActions.RESTART,
-        arguments = {
-            id = 19
-        }
-    },
-    {
-        action = TestActions.GIVE_CARD,
-        arguments = {
-            id = 1,
-            playerIndex = 1
-        }
-    },
-    {
-        action = TestActions.WAIT_FOR_SECONDS,
-        arguments = {
-            seconds = 1,
-        }
-    },
-    {
-        action = TestActions.DROP_POCKET_ITEM,
-        arguments = {
-            playerIndex = 1
-        }
-    }
-})
-
-Test.RegisterTest("teleport", {
-    {
-        action = TestActions.RESTART,
-        arguments = {
-        }
-    },
-    {
-        action = TestActions.TELEPORT_TO_POSITION,
-        arguments = {
-            x = "50%",
-            y = "50%"
-        }
-    }
-})
-
-Test.RegisterTest("repeat", {
-    {
-        action = TestActions.REPEAT,
-        arguments = {
-            times = 2,
-            steps = {
-                {
-                    action = TestActions.USE_CARD,
-                    arguments = {
-                        id = 3
-                    }
-                },
-                {
-                    action = TestActions.WAIT_FOR_KEY,
-                    arguments = {
-                        key = Keyboard.KEY_ENTER
-                    }
-                }
-            }
-        }
-    },
-    {
-        action = TestActions.SHOOT_DOWN,
-        arguments = {
-            seconds = 1
-        }
-    }
-})
+include("tests")
