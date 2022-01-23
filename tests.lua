@@ -1,3 +1,59 @@
+Test.RegisterTests("testing", {
+    {
+        name = "cards",
+        steps = {
+            {
+                action = "RESTART",
+                id = PlayerType.PLAYER_ISAAC
+            },
+            {
+                action = "GIVE_CARD",
+                id = function()
+                    for i = 1, 12 do
+                        if i == 6 then
+                            return i
+                        end
+                    end
+                end
+            },
+            {
+                action = "WAIT_FOR_SECONDS",
+                seconds = 1
+            },
+            {
+                action = "USE_CARD"
+            },
+            {
+                action = "GIVE_ITEM",
+                id = CollectibleType.COLLECTIBLE_STARTER_DECK
+            },
+            {
+                action = "GIVE_CARD",
+                id = 3
+            },
+            {
+                action = "GIVE_CARD",
+                id = 4
+            },
+            {
+                action = "WAIT_FOR_SECONDS",
+                seconds = 1
+            },
+            {
+                action = "USE_CARD",
+                slot = function(args)
+                    local player = Isaac.GetPlayer(args.playerIndex or 0)
+                    for i = 0, 3 do
+                        if player:GetCard(i) == 0 then
+                            return i - 1
+                        end
+                    end
+                end
+            },
+        }
+    }
+})
+
 Test.RegisterTest("cards", {
     {
         action = "RESTART"
@@ -473,5 +529,42 @@ Test.RegisterTest("repeat", {
     {
         action = "SHOOT_DOWN",
         seconds = 1
+    }
+})
+
+Test.RegisterTest("door", {
+    {
+        action = "RESTART",
+        id = 0
+    },
+    {
+        action = "WAIT_FOR_SECONDS",
+        seconds = 2
+    },
+    {
+        action = "GO_TO_DOOR"
+    }
+})
+
+Test.RegisterTest("funnyBomb", {
+    {
+        action = "RESTART",
+        id = 0
+    },
+    {
+        action = "WAIT_FOR_SECONDS",
+        seconds = 2
+    },
+    {
+        action = "USE_BOMB"
+    },
+    {
+        action = "USE_BOMB",
+        async = true,
+        force = true
+    },
+    {
+        action = "MOVE_RIGHT",
+        seconds = 3
     }
 })

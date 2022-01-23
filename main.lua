@@ -5,10 +5,12 @@ font:Load("font/terminus.fnt")
 local json = include("json")
 local helpers = include("helpers")
 
+local registeredMods = {}
+
 local registeredTests = {}
 
 if TestingMod:HasData() then
-    registeredTests = json.decode(TestingMod:LoadData())
+    registeredMods = json.decode(TestingMod:LoadData())
 end
 
 Test = {}
@@ -46,20 +48,26 @@ TestActions = {
     SWAP_ACTIVE_ITEMS = "SWAP_ACTIVE_ITEMS",
     SWAP_SUB_PLAYERS = "SWAP_SUB_PLAYERS",
     SWAP = "SWAP",
-    TELEPORT_TO_POSITION = "TELEPORT_TO_POSITION"
+    TELEPORT_TO_POSITION = "TELEPORT_TO_POSITION",
+    CHARGE_ACTIVE_ITEM = "CHARGE_ACTIVE_ITEM",
+    DISCHARGE_ACTIVE_ITEM = "DISCHARGE_ACTIVE_ITEM",
+    GO_TO_DOOR = "GO_TO_DOOR",
+    CLEAR_SEED = "CLEAR_SEED"
 }
 
-function Test.RegisterTest(name, tests, shouldSave)
+function Test.RegisterTest(name, tests, mod)
     registeredTests[name] = tests
 
-    if shouldSave == nil or shouldSave then
-        TestingMod:SaveData(json.encode(registeredTests))
+    if mod and not registeredMods[mod] then
+        registeredMods[mod] = true
+
+        TestingMod:SaveData(json.encode(registeredMods))
     end
 
     return tests
 end
 
-function Test.RegisterTests(name, tests, awaitStep)
+function Test.RegisterTests(name, tests, mod, awaitStep)
     local finalSteps = {}
 
     for index, test in pairs(tests) do
@@ -68,7 +76,7 @@ function Test.RegisterTests(name, tests, awaitStep)
         if helpers.IncludesMultipleTests(test.steps) then
             results = Test.RegisterTests(test.name, test.steps, awaitStep)
         else
-            results = Test.RegisterTest(test.name, test.steps, false)
+            results = Test.RegisterTest(test.name, test.steps, mod)
         end
 
         if results then
@@ -82,7 +90,7 @@ function Test.RegisterTests(name, tests, awaitStep)
         end
     end
 
-    Test.RegisterTest(name, finalSteps)
+    Test.RegisterTest(name, finalSteps, mod)
 
     return finalSteps
 end
@@ -97,7 +105,7 @@ local shouldActions = {}
 local delayConfig = helpers.DeepCopyTable(initialDelayConfig)
 
 local GetAsyncOrDelay = function(arguments, value)
-    if arguments.async then
+    if helpers.GetValue(arguments.async, arguments) then
         return 0
     else
         return value
@@ -125,19 +133,19 @@ local delay = function(value, callback, inFrames)
 end
 
 local waitForSeconds = function(arguments, next)
-    delay(arguments.seconds, next)
+    delay(helpers.GetValue(arguments.seconds, arguments), next)
 end
 
 local waitForFrames = function(arguments, next)
-    delay(arguments.frames, next, true)
+    delay(helpers.GetValue(arguments.frames, arguments), next, true)
 end
 
 local moveLeft = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.MOVE_LEFT,
-        speed = arguments.speed or 1,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        speed = helpers.GetValue(arguments.speed, arguments, 1),
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -145,9 +153,9 @@ end
 local moveRight = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.MOVE_RIGHT,
-        speed = arguments.speed or 1,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        speed = helpers.GetValue(arguments.speed, arguments, 1),
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -155,9 +163,9 @@ end
 local moveUp = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.MOVE_UP,
-        speed = arguments.speed or 1,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        speed = helpers.GetValue(arguments.speed, arguments, 1),
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -165,9 +173,9 @@ end
 local moveDown = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.MOVE_DOWN,
-        speed = arguments.speed or 1,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        speed = helpers.GetValue(arguments.speed, arguments, 1),
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -175,8 +183,8 @@ end
 local shootLeft = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SHOOT_LEFT,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -184,8 +192,8 @@ end
 local shootRight = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SHOOT_RIGHT,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -193,8 +201,8 @@ end
 local shootUp = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SHOOT_UP,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
@@ -202,55 +210,60 @@ end
 local shootDown = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SHOOT_DOWN,
-        frames = arguments.seconds * 30,
-        playerIndex = arguments.playerIndex or 0
+        frames = helpers.GetValue(arguments.seconds, arguments, 0) * 30,
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(GetAsyncOrDelay(arguments, arguments.seconds), next)
 end
 
 local runCommand = function(arguments, next)
-    local result = Isaac.ExecuteCommand(arguments.command)
+    local result = Isaac.ExecuteCommand(helpers.GetValue(arguments.command, arguments))
     delay(0, next)
     return result
 end
 
 local giveCard = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    player:AddCard(arguments.id)
+    player:AddCard(helpers.GetValue(arguments.id, arguments))
     delay(0, next)
 end
 
 local givePill = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    player:AddPill(arguments.color)
+    player:AddPill(helpers.GetValue(arguments.color, arguments))
     delay(0, next)
 end
 
 local giveItem = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    player:AddCollectible(arguments.id)
+    player:AddCollectible(helpers.GetValue(arguments.id, arguments), 0, true, helpers.GetValue(arguments.slot, arguments, 0))
+
+    if helpers.GetValue(arguments.charged, arguments) then
+        player:FullCharge(helpers.GetValue(arguments.slot, arguments, 0))
+    end
+
     delay(0, next)
 end
 
 local giveTrinket = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    player:AddTrinket(arguments.id)
+    player:AddTrinket(helpers.GetValue(arguments.id, arguments))
     delay(0, next)
 end
 
 local useCard = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     local cardId
 
     if arguments.id then
-        cardId = arguments.id
+        cardId = helpers.GetValue(arguments.id, arguments)
     else
-        local card = player:GetCard(arguments.slot or 0)
+        local card = player:GetCard(helpers.GetValue(arguments.slot, arguments, 0))
         if card ~= 0 then
             cardId = card
         end
@@ -259,7 +272,7 @@ local useCard = function(arguments, next)
     if cardId then
         player:UseCard(cardId)
 
-        for i = (arguments.slot or 0), 3 do
+        for i = helpers.GetValue(arguments.slot, arguments, 0), 3 do
             player:SetCard(i, player:GetCard(i + 1))
         end
 
@@ -270,16 +283,16 @@ local useCard = function(arguments, next)
 end
 
 local usePill = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     local pillId
     local pillColor
 
     if arguments.id then
-        pillId = arguments.id
-        pillColor = arguments.color or 0
+        pillId = helpers.GetValue(arguments.id, arguments)
+        pillColor = helpers.GetValue(arguments.color, arguments, 0)
     else
-        local pill = player:GetPill(arguments.slot or 0)
+        local pill = player:GetPill(helpers.GetValue(arguments.slot, arguments, 0))
         if pill ~= 0 then
             pillColor = pill
             pillId = Game():GetItemPool():GetPillEffect(pillColor, player)
@@ -289,7 +302,7 @@ local usePill = function(arguments, next)
     if pillId then
         player:UsePill(pillId, pillColor or 0)
 
-        for i = (arguments.slot or 0), 3 do
+        for i = helpers.GetValue(arguments.slot, arguments, 0), 3 do
             player:SetPill(i, player:GetPill(i + 1))
         end
 
@@ -300,9 +313,9 @@ local usePill = function(arguments, next)
 end
 
 local useBomb = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    if arguments.force or player:GetNumBombs() > 0 then
+    if helpers.GetValue(arguments.force, arguments) or player:GetNumBombs() > 0 then
         player:FireBomb(player.Position, Vector.Zero, player)
         player:AddBombs(-1)
     end
@@ -311,22 +324,22 @@ local useBomb = function(arguments, next)
 end
 
 local useItem = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     local itemId
     local itemSlot
 
     if arguments.id then
-        itemId = arguments.id
+        itemId = helpers.GetValue(arguments.id, arguments, 0)
     else
-        local item = player:GetActiveItem(arguments.slot or 0)
+        local item = player:GetActiveItem(helpers.GetValue(arguments.slot, arguments, 0))
         if item ~= 0 then
             itemId = item
-            itemSlot = arguments.slot or 0
+            itemSlot = helpers.GetValue(arguments.slot, arguments, 0)
         end
     end
 
-    if itemId and (arguments.force or not itemSlot or not player:NeedsCharge(itemSlot)) then
+    if itemId and (helpers.GetValue(arguments.force, arguments) or not itemSlot or not player:NeedsCharge(itemSlot)) then
         player:UseActiveItem(itemId, 0, itemSlot or -1)
         
         if itemSlot then
@@ -340,14 +353,14 @@ local useItem = function(arguments, next)
 end
 
 local dropPocketItem = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    player:DropPocketItem(arguments.slot or 0, player.Position)
+    player:DropPocketItem(helpers.GetValue(arguments.slot, arguments, 0), player.Position)
     delay(0, next)
 end
 
 local dropTrinket = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     player:DropTrinket(player.Position)
     delay(0, next)
@@ -356,7 +369,7 @@ end
 local waitForKey = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.WAIT_FOR_KEY,
-        key = arguments.key or Keyboard.KEY_ENTER
+        key = helpers.GetValue(arguments.key, arguments, Keyboard.KEY_ENTER)
     })
     delay(0, next)
 end
@@ -374,22 +387,25 @@ local isDebugFlagEnabled = function(debugFlag)
 end
 
 local enableDebugFlag = function(arguments, next)
-    if not isDebugFlagEnabled(arguments.flag) then
-        toggleDebugFlag(arguments.flag)
+    if not isDebugFlagEnabled(helpers.GetValue(arguments.flag, arguments)) then
+        toggleDebugFlag(helpers.GetValue(arguments.flag, arguments))
     end
     delay(0, next)
 end
 
 local disableDebugFlag = function(arguments, next)
-    if isDebugFlagEnabled(arguments.flag) then
-        toggleDebugFlag(arguments.flag)
+    if isDebugFlagEnabled(helpers.GetValue(arguments.flag, arguments)) then
+        toggleDebugFlag(helpers.GetValue(arguments.flag, arguments))
     end
     delay(0, next)
 end
 
 local executeLua = function(arguments, next)
-    if arguments.code then
-        arguments.command = "lua "..arguments.code
+    if type(arguments.code) == "function" then
+        arguments.code(arguments)
+        delay(0, next)
+    else
+        arguments.command = "lua "..helpers.GetValue(arguments.code, arguments)
         local result = runCommand(arguments, next)
         if result and result ~= "" then
             print(result)
@@ -397,24 +413,40 @@ local executeLua = function(arguments, next)
     end
 end
 
+local clearSeed = function(_, next)
+    Game():GetSeeds():ClearStartSeed()
+
+    delay(0, next)
+end
+
 local restart = function(arguments, next)
     if arguments.id then
-        arguments.command = "restart "..arguments.id
+        arguments.command = "restart "..helpers.GetValue(arguments.id, arguments)
     else
         arguments.command = "restart"
     end
 
     if not arguments.seed then
-        runCommand(arguments, next)
+        clearSeed({}, function()
+            runCommand(arguments, next)
+        end)
     else
         runCommand({ command = arguments.command }, function()
-            runCommand({ command = "seed "..arguments.seed }, next)
+            runCommand({ command = "seed "..helpers.GetValue(arguments.seed, arguments) }, function()
+                if not helpers.GetValue(arguments.persist, arguments) then
+                    clearSeed({}, next)
+                end
+            end)
         end)
     end
 end
 
 local spawn = function(arguments, next)
-    Isaac.Spawn(arguments.type, arguments.variant or 0, arguments.subType or 0, arguments.position or Game():GetRoom():GetCenterPos(), arguments.velocity or Vector.Zero, arguments.spawner)
+    local entity = Isaac.Spawn(helpers.GetValue(arguments.type, arguments), helpers.GetValue(arguments.variant, arguments, 0), helpers.GetValue(arguments.subType, arguments, 0), helpers.GetValue(arguments.position, arguments, Game():GetRoom():GetCenterPos()), helpers.GetValue(arguments.velocity, arguments, Vector.Zero), helpers.GetValue(arguments.spawner, arguments))
+
+    if arguments.after and type(arguments.after) == "function" then
+        arguments.after(entity)
+    end
 
     delay(0, next)
 end
@@ -424,7 +456,7 @@ local repeatStep = function(_, next)
 end
 
 local swapPillCards = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     local cards = {}
 
@@ -450,7 +482,7 @@ local swapPillCards = function(arguments, next)
 end
 
 local swapActiveItems = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
     player:SwapActiveItems()
 
@@ -460,7 +492,7 @@ end
 local swap = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SWAP,
-        playerIndex = arguments.playerIndex or 0
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(0, next)
 end
@@ -468,39 +500,78 @@ end
 local swapSubPlayers = function(arguments, next)
     table.insert(shouldActions, {
         action = TestActions.SWAP_SUB_PLAYERS,
-        playerIndex = arguments.playerIndex or 0
+        playerIndex = helpers.GetPlayerIndex(arguments)
     })
     delay(0, next)
 end
 
 local teleportToPosition = function(arguments, next)
-    local player = Isaac.GetPlayer(arguments.playerIndex or 0)
+    local player = helpers.GetPlayer(arguments)
 
-    local bottomRight = Game():GetRoom():GetBottomRightPos()
+    player.Position = Game():GetRoom():GetClampedPosition(helpers.GetValue(arguments.position, arguments, Game():GetRoom():GetCenterPos()), 0)
 
-    local position = Vector.Zero
+    delay(0, next)
+end
 
-    if type(arguments.x) == "number" then
-        position.X = arguments.x
-    elseif type(arguments.x) == "string" then
-        local percentage = helpers.ParsePercentage(arguments.x)
+local chargeActiveItem = function(arguments, next)
+    local player = helpers.GetPlayer(arguments)
 
-        if percentage then
-            position.X = bottomRight.X * percentage
+    player:FullCharge(helpers.GetValue(arguments.slot, arguments, 0))
+
+    delay(0, next)
+end
+
+local dischargeActiveItem = function(arguments, next)
+    local player = helpers.GetPlayer(arguments)
+
+    player:DischargeActiveItem(helpers.GetValue(arguments.slot, arguments, 0))
+
+    delay(0, next)
+end
+
+local goToDoor = function(arguments, next)
+    local player = helpers.GetPlayer(arguments)
+    local room = Game():GetRoom()
+
+    if arguments.slot then
+        local slotValue = helpers.GetValue(arguments.slot, arguments)
+        local door = room:GetDoor(slotValue)
+
+        if door then
+            if not door:IsOpen() then
+                door:SetLocked(false)
+                door:Open()
+                
+                delay(12, function()
+                    player.Position = room:GetDoorSlotPosition(slotValue)
+                    delay(0, next)
+                end, true)
+            else
+                player.Position = room:GetDoorSlotPosition(slotValue)
+            end
+
+            return
+        end
+    else
+        for i = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
+            local door = room:GetDoor(i)
+
+            if door and door.TargetRoomType == (helpers.GetValue(arguments.type, arguments, RoomType.ROOM_DEFAULT)) then
+                if not door:IsOpen() then
+                    door:Open()
+
+                    delay(12, function()
+                        player.Position = room:GetDoorSlotPosition(i)
+                        delay(0, next)
+                    end, true)
+
+                    return
+                else
+                    player.Position = room:GetDoorSlotPosition(i)
+                end
+            end
         end
     end
-
-    if type(arguments.y) == "number" then
-        position.Y = arguments.y
-    elseif type(arguments.y) == "string" then
-        local percentage = helpers.ParsePercentage(arguments.x)
-
-        if percentage then
-            position.Y = bottomRight.Y * percentage
-        end
-    end
-
-    player.Position = Game():GetRoom():GetClampedPosition(position, 0)
 
     delay(0, next)
 end
@@ -538,7 +609,11 @@ local TestSteps = {
     [TestActions.SWAP_ACTIVE_ITEMS] = swapActiveItems,
     [TestActions.SWAP] = swap,
     [TestActions.SWAP_SUB_PLAYERS] = swapSubPlayers,
-    [TestActions.TELEPORT_TO_POSITION] = teleportToPosition
+    [TestActions.TELEPORT_TO_POSITION] = teleportToPosition,
+    [TestActions.CHARGE_ACTIVE_ITEM] = chargeActiveItem,
+    [TestActions.DISCHARGE_ACTIVE_ITEM] = dischargeActiveItem,
+    [TestActions.GO_TO_DOOR] = goToDoor,
+    [TestActions.CLEAR_SEED] = clearSeed
 }
 
 -- INSTRUCTIONS END
@@ -556,8 +631,8 @@ local function createRunChain(steps, next)
         if step.action == TestActions.REPEAT and step.steps then
             local repeatSteps = {}
 
-            for j = 1, step.times or 1 do
-                for _, repeatedStep in pairs(step.steps) do
+            for j = 1, helpers.GetValue(step.times, step, 1) do
+                for _, repeatedStep in pairs(helpers.GetValue(step.steps, step)) do
                     table.insert(repeatSteps, repeatedStep)
                 end
             end
@@ -583,11 +658,13 @@ end
 local function run(steps)
     local nextStep = createRunChain(steps)
 
-    nextStep()
+    if nextStep then
+        nextStep()
+    end
 end
 
 local function GetTestFromAction(action, player)
-    local truePlayerIndex = helpers.GetTruePlayerIndex(player)
+    local truePlayerIndex = helpers.ExtractTruePlayerIndex(player)
 
     return helpers.FindTableEntryByProperty(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
@@ -595,7 +672,7 @@ end
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
     local color = KColor(1, 1, 1, 1)
-    local boxSize = Isaac.GetScreenWidth() / 2
+    local boxSize = math.floor(Isaac.GetScreenWidth() / 2)
     local waitForKeyTest = GetTestFromAction(TestActions.WAIT_FOR_KEY)
 
     if waitForKeyTest then
@@ -797,14 +874,38 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 end)
 
 TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
-    if command:lower() == "test" then
-        if args and registeredTests[args] then
+    if command:lower() == "test" and args then
+        if args:lower() == "stop" then
             stop()
-            run(registeredTests[args])
         else
-            print("Tests not found for '"..args.."'")
+            if registeredTests[args] then
+                stop()
+                run(registeredTests[args])
+            else
+                print("Tests not found for '"..args.."'")
+            end
         end
     end
 end)
 
 include("tests")
+
+local shouldReload = true
+
+local function ReloadMods()
+    if shouldReload then
+        for key, _ in pairs(registeredMods) do
+            local result = Isaac.ExecuteCommand("luamod "..key)
+            if result ~= "Failed to run mod!" then
+                print("Testing Mod re-registered '"..key.."' tests")
+            else
+                print("Testing Mod failed to re-register '"..key.."' tests because the mod is disabled")
+            end
+        end
+        shouldReload = false
+    else
+        TestingMod:RemoveCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
+    end
+end
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)

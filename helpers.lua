@@ -12,7 +12,7 @@ function H.IncludesMultipleTests(tests)
     return true
 end
 
-function H.GetTruePlayerIndex(player)
+function H.ExtractTruePlayerIndex(player)
     if player then
         for i = 0, Game():GetNumPlayers() - 1 do
             local p = Isaac.GetPlayer(i)
@@ -76,6 +76,26 @@ function H.RemoveElementFromTable(t, element)
     if indexOf then
         table.remove(t, indexOf)
     end
+end
+
+function H.GetValue(val, arguments, default)
+    if not val then
+        return default
+    end
+
+    if type(val) == "function" then
+        return val(arguments)
+    else
+        return val
+    end
+end
+
+function H.GetPlayerIndex(arguments)
+    return H.GetValue(arguments.playerIndex, arguments, PlayerType.PLAYER_ISAAC)
+end
+
+function H.GetPlayer(arguments)
+    return Isaac.GetPlayer(H.GetPlayerIndex(arguments))
 end
 
 return H
