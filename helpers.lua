@@ -44,6 +44,22 @@ function H.ParsePercentage(s)
     end
 end
 
+function H.FindTableEntryIndexByProperty(t, props)
+    for i = 1, #t do
+        local foundAll = true
+	    for key, value in pairs(props) do
+            if t[i][key] ~= value then
+                foundAll = false
+                break
+            end
+        end
+
+        if foundAll then
+            return i
+        end
+    end
+end
+
 function H.FindTableEntryByProperty(t, props)
     local found
 	for _, item in pairs(t) do

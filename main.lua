@@ -55,8 +55,8 @@ TestActions = {
     CLEAR_SEED = "CLEAR_SEED"
 }
 
-function Test.RegisterTest(name, tests, mod)
-    registeredTests[name] = tests
+function Test.RegisterTest(name, steps, mod)
+    registeredTests[name] = steps
 
     if mod and not registeredMods[mod] then
         registeredMods[mod] = true
@@ -64,7 +64,7 @@ function Test.RegisterTest(name, tests, mod)
         TestingMod:SaveData(json.encode(registeredMods))
     end
 
-    return tests
+    return steps
 end
 
 function Test.RegisterTests(name, tests, mod, awaitStep)
@@ -74,13 +74,16 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
         local results
 
         if helpers.IncludesMultipleTests(test.steps) then
-            results = Test.RegisterTests(test.name, test.steps, awaitStep)
+            results = Test.RegisterTests(test.name, test.steps, mod, awaitStep)
         else
             results = Test.RegisterTest(test.name, test.steps, mod)
         end
 
         if results then
             for _, newStep in pairs(results) do
+                if not newStep._id then
+                    newStep._id = test.name
+                end
                 table.insert(finalSteps, newStep)
             end
         end
@@ -878,9 +881,55 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
         if args:lower() == "stop" then
             stop()
         else
-            if registeredTests[args] then
-                stop()
-                run(registeredTests[args])
+            local testNames = {}
+            for substring in args:gmatch("%S+") do
+                table.insert(testNames, substring)
+            end
+
+            if #testNames > 0 then
+                local firstTestName = testNames[1]
+                local testSuite = registeredTests[firstTestName]
+                table.remove(testNames, 1)
+                local firstStepIndex = 1
+                
+                if testSuite then
+                    for i, testName in pairs(testNames) do
+                        local lastTestName
+
+                        if i - 1 < 1 then
+                            lastTestName = firstTestName
+                        else
+                            lastTestName = testNames[i - 1]
+                        end
+
+                        local foundFirstStepIndex = helpers.FindTableEntryIndexByProperty(testSuite, { _id = testName })
+                        if not foundFirstStepIndex then
+                            print("Tests not found for '"..testName.."' under '"..lastTestName.."'")
+                            return
+                        else
+                            if firstStepIndex and foundFirstStepIndex < firstStepIndex then
+                                print("Tests not found for '"..testName.."' under '"..lastTestName.."'")
+                                return
+                            else
+                                firstStepIndex = foundFirstStepIndex
+                            end
+                        end
+                    end
+
+                    if firstStepIndex then
+                        stop()
+
+                        local steps = {}
+
+                        for i = firstStepIndex, #testSuite do
+                            table.insert(steps, testSuite[i])
+                        end
+
+                        run(steps)
+                    end
+                else
+                    print("Tests not found for '"..testNames[1].."'")
+                end
             else
                 print("Tests not found for '"..args.."'")
             end
