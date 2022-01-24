@@ -1,6 +1,6 @@
 TestingMod = RegisterMod("Testing Framework", 1)
 local font = Font()
-font:Load("font/terminus.fnt")
+font:Load("font/pftempestasevencondensed.fnt")
 
 local json = include("json")
 local helpers = include("helpers")
@@ -125,6 +125,7 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
     return finalSteps
 end
 
+local isStopped = true
 local currentStep
 
 local initialDelayConfig = {
@@ -146,10 +147,13 @@ end
 
 -- INSTRUCTIONS
 
-local stop = function()
+local stop = function(persistCurrentStep)
     shouldActions = {}
     delayConfig = helpers.DeepCopyTable(initialDelayConfig)
-    currentStep = nil
+    if not persistCurrentStep then
+        currentStep = nil
+    end
+    isStopped = true
 end
 
 local delay = function(value, callback, inFrames)
@@ -161,7 +165,9 @@ local delay = function(value, callback, inFrames)
     if callback then
         delayConfig.next = callback
     else
-        delayConfig.next = stop
+        delayConfig.next = function()
+            stop(true)
+        end
     end
 end
 
@@ -694,9 +700,11 @@ local function createRunChain(steps, next)
 end
 
 local function run(steps)
+    stop()
     local nextStep = createRunChain(steps)
 
     if nextStep then
+        isStopped = false
         nextStep()
     end
 end
@@ -867,7 +875,6 @@ local runFromNestedTest = function(args)
         local testSuite = registeredTests[firstTestName]
 
         if #testNames == 1 then
-            stop()
             run(testSuite)
             return
         end
@@ -882,8 +889,6 @@ local runFromNestedTest = function(args)
             end
 
             if firstStepIndex then
-                stop()
-
                 local steps = {}
 
                 for i = firstStepIndex, #testSuite do
@@ -925,18 +930,25 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
 end)
 
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
-    local position = Vector(Isaac.GetScreenWidth() / 3, 20)
+    local position = Vector(Isaac.GetScreenWidth() / 3, 5)
     local color = KColor(1, 1, 1, 1)
     local boxSize = math.floor(Isaac.GetScreenWidth() / 3)
-    local lineHeight = 20
+    local lineHeight = 10
 
     if currentStep then
         if currentStep.name then
-            font:DrawString(currentStep.name, position.X, position.Y, color, boxSize, true)
+            font:DrawStringScaled(currentStep.name, position.X, position.Y, 1.2, 1.2, color, boxSize, true)
         end
 
         if currentStep.instructions then
-            font:DrawString(currentStep.instructions, position.X, position.Y + lineHeight, color, boxSize, true)
+            local instructions = currentStep.instructions
+            if type(currentStep.instructions) ~= "table" then
+                instructions = { currentStep.instructions }
+            end
+
+            for i, instruction in pairs(instructions) do
+                font:DrawString(i..". "..instruction, position.X, position.Y + (lineHeight) * i + 5, color, boxSize, true)
+            end
         end
     end
 end)
@@ -967,11 +979,10 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
         if delayConfig.next then
             delayConfig.next()
-            if not delayConfig.next then
-                stop()
-            end
         else
-            stop()
+            if not isStopped then
+                stop(true)
+            end
         end
     end
 end)
