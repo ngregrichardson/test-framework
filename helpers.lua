@@ -44,12 +44,14 @@ function H.ParsePercentage(s)
     end
 end
 
-function H.FindTableEntryIndexByProperty(t, props)
+function H.FindTableEntryIndexByPropertyStartsWith(t, props)
     for i = 1, #t do
         local foundAll = true
 	    for key, value in pairs(props) do
-            if t[i][key] ~= value then
-                foundAll = false
+	        local val = string.format("%s", t[i][key])
+	        
+	        if not val:match('^'..value) then
+	            foundAll = false
                 break
             end
         end

@@ -577,8 +577,7 @@ Test.RegisterTests("outerTest", {
                         action = "EXECUTE_LUA",
                         code = function() print('running innerInnerTestThree') end
                     }
-                },
-                instructions = "innerInnerTestThree"
+                }
             }
         },
         instructions = "poggie inner test"

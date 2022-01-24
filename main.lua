@@ -106,6 +106,14 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
             for _, newStep in pairs(results) do
                 local copiedStep = helpers.DeepCopyTable(newStep)
                 lastPath = name.." "..test.name
+
+                if copiedStep.path then
+                    local cutPath = string.match(copiedStep.path, '%s(.*)')
+                    if cutPath then
+                        lastPath = lastPath.." "..cutPath 
+                    end
+                end
+
                 applyTestPathToStep(copiedStep, lastPath, test.instructions)
                 table.insert(finalSteps, copiedStep)
             end
@@ -881,7 +889,7 @@ local runFromNestedTest = function(args)
 
         if testSuite then
             local path = table.concat(testNames, " ")
-            local firstStepIndex = helpers.FindTableEntryIndexByProperty(testSuite, { path = path })
+            local firstStepIndex = helpers.FindTableEntryIndexByPropertyStartsWith(testSuite, { path = path })
 
             if not firstStepIndex then
                 print("Tests not found for '"..path.."' under '"..firstTestName.."'")
