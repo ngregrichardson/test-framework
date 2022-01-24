@@ -52,7 +52,8 @@ TestActions = {
     CHARGE_ACTIVE_ITEM = "CHARGE_ACTIVE_ITEM",
     DISCHARGE_ACTIVE_ITEM = "DISCHARGE_ACTIVE_ITEM",
     GO_TO_DOOR = "GO_TO_DOOR",
-    CLEAR_SEED = "CLEAR_SEED"
+    CLEAR_SEED = "CLEAR_SEED",
+    BLANK = "BLANK"
 }
 
 function Test.RegisterTest(name, steps, mod)
@@ -67,6 +68,16 @@ function Test.RegisterTest(name, steps, mod)
     return steps
 end
 
+local function applyTestPathToStep(step, path)
+    step.path = path
+
+    if step.steps then
+        for _, s in pairs(step.steps) do
+            applyTestPathToStep(s, path)
+        end
+    end
+end
+
 function Test.RegisterTests(name, tests, mod, awaitStep)
     local finalSteps = {}
 
@@ -79,17 +90,24 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
             results = Test.RegisterTest(test.name, test.steps, mod)
         end
 
+        local lastPath
+
         if results then
             for _, newStep in pairs(results) do
-                if not newStep._id then
-                    newStep._id = test.name
+                local copiedStep = helpers.DeepCopyTable(newStep)
+                if not copiedStep._id then
+                    copiedStep._id = test.name
+                    lastPath = name.." "..test.name
+                else
+                    lastPath = name.." "..test.name.." "..newStep._id
                 end
-                table.insert(finalSteps, newStep)
+                applyTestPathToStep(copiedStep, lastPath)
+                table.insert(finalSteps, copiedStep)
             end
         end
 
         if index < #tests then
-            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER })
+            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER, _id = test.name, path = lastPath })
         end
     end
 
@@ -97,6 +115,8 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
 
     return finalSteps
 end
+
+local currentStep
 
 local initialDelayConfig = {
     frames = 0,
@@ -120,6 +140,7 @@ end
 local stop = function()
     shouldActions = {}
     delayConfig = helpers.DeepCopyTable(initialDelayConfig)
+    currentStep = nil
 end
 
 local delay = function(value, callback, inFrames)
@@ -344,7 +365,7 @@ local useItem = function(arguments, next)
 
     if itemId and (helpers.GetValue(arguments.force, arguments) or not itemSlot or not player:NeedsCharge(itemSlot)) then
         player:UseActiveItem(itemId, 0, itemSlot or -1)
-        
+
         if itemSlot then
             player:DischargeActiveItem(itemSlot)
         end
@@ -544,7 +565,7 @@ local goToDoor = function(arguments, next)
             if not door:IsOpen() then
                 door:SetLocked(false)
                 door:Open()
-                
+
                 delay(12, function()
                     player.Position = room:GetDoorSlotPosition(slotValue)
                     delay(0, next)
@@ -576,6 +597,10 @@ local goToDoor = function(arguments, next)
         end
     end
 
+    delay(0, next)
+end
+
+local function blank(_, next)
     delay(0, next)
 end
 
@@ -616,7 +641,8 @@ local TestSteps = {
     [TestActions.CHARGE_ACTIVE_ITEM] = chargeActiveItem,
     [TestActions.DISCHARGE_ACTIVE_ITEM] = dischargeActiveItem,
     [TestActions.GO_TO_DOOR] = goToDoor,
-    [TestActions.CLEAR_SEED] = clearSeed
+    [TestActions.CLEAR_SEED] = clearSeed,
+    [TestActions.BLANK] = blank
 }
 
 -- INSTRUCTIONS END
@@ -649,6 +675,10 @@ local function createRunChain(steps, next)
         end
 
         nextStep = function()
+            currentStep = {
+                _id = step.path:match("(%S+)$"),
+                path = step.path
+            }
             TestSteps[step.action](step or {}, tempNextStep)
         end
 
@@ -671,25 +701,6 @@ local function GetTestFromAction(action, player)
 
     return helpers.FindTableEntryByProperty(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
-
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
-    local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
-    local color = KColor(1, 1, 1, 1)
-    local boxSize = math.floor(Isaac.GetScreenWidth() / 2)
-    local waitForKeyTest = GetTestFromAction(TestActions.WAIT_FOR_KEY)
-
-    if waitForKeyTest then
-        local keyName
-        for key, value in pairs(Keyboard) do
-            if value == waitForKeyTest.key then
-                keyName = key
-                break
-            end
-        end
-        font:DrawString("Hit "..(keyName or "the specified key").." to continue the tests...", position.X, position.Y, color, boxSize, true)
-        position = position - Vector(0, 15)
-    end
-end)
 
 TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
     if entity ~= nil and entity:ToPlayer() then
@@ -840,8 +851,80 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
     end
 end)
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+local runFromNestedTest = function(args)
+    print("nested step: "..args)
+    local testNames = {}
+    for substring in args:gmatch("%S+") do
+        table.insert(testNames, substring)
+    end
 
+    if #testNames > 0 then
+        local firstTestName = testNames[1]
+        local testSuite = registeredTests[firstTestName]
+
+        if #testNames == 1 then
+            stop()
+            run(testSuite)
+            return
+        end
+
+        if testSuite then
+            local path = table.concat(testNames, " ")
+
+            print('searching for path: '..path)
+
+            local firstStepIndex = helpers.FindTableEntryIndexByProperty(testSuite, { path = path })
+
+            if not firstStepIndex then
+                print("Tests not found for '"..path.."' under '"..firstTestName.."'")
+                return
+            end
+
+            if firstStepIndex then
+                stop()
+
+                local steps = {}
+
+                for i = firstStepIndex, #testSuite do
+                    table.insert(steps, testSuite[i])
+                end
+
+                run(steps)
+            end
+        else
+            print("Tests not found for '"..testNames[1].."'")
+        end
+    else
+        print("Tests not found for '"..args.."'")
+    end
+end
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+
+    if currentStep and (not Game():IsPaused()) and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
+        print(currentStep.path)
+        runFromNestedTest(currentStep.path)
+    end
+
+    local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
+    local color = KColor(1, 1, 1, 1)
+    local boxSize = math.floor(Isaac.GetScreenWidth() / 2)
+    local waitForKeyTest = GetTestFromAction(TestActions.WAIT_FOR_KEY)
+
+    if waitForKeyTest then
+        local keyName
+        for key, value in pairs(Keyboard) do
+            if value == waitForKeyTest.key then
+                keyName = key
+                break
+            end
+        end
+        font:DrawString("Hit "..(keyName or "the specified key").." to continue the tests...", position.X, position.Y, color, boxSize, true)
+        position = position - Vector(0, 15)
+    end
+end)
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     -- Decrement frames and remove completed actions
     for i = 1, #shouldActions do
         local test = shouldActions[i]
@@ -881,58 +964,7 @@ TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
         if args:lower() == "stop" then
             stop()
         else
-            local testNames = {}
-            for substring in args:gmatch("%S+") do
-                table.insert(testNames, substring)
-            end
-
-            if #testNames > 0 then
-                local firstTestName = testNames[1]
-                local testSuite = registeredTests[firstTestName]
-                table.remove(testNames, 1)
-                local firstStepIndex = 1
-                
-                if testSuite then
-                    for i, testName in pairs(testNames) do
-                        local lastTestName
-
-                        if i - 1 < 1 then
-                            lastTestName = firstTestName
-                        else
-                            lastTestName = testNames[i - 1]
-                        end
-
-                        local foundFirstStepIndex = helpers.FindTableEntryIndexByProperty(testSuite, { _id = testName })
-                        if not foundFirstStepIndex then
-                            print("Tests not found for '"..testName.."' under '"..lastTestName.."'")
-                            return
-                        else
-                            if firstStepIndex and foundFirstStepIndex < firstStepIndex then
-                                print("Tests not found for '"..testName.."' under '"..lastTestName.."'")
-                                return
-                            else
-                                firstStepIndex = foundFirstStepIndex
-                            end
-                        end
-                    end
-
-                    if firstStepIndex then
-                        stop()
-
-                        local steps = {}
-
-                        for i = firstStepIndex, #testSuite do
-                            table.insert(steps, testSuite[i])
-                        end
-
-                        run(steps)
-                    end
-                else
-                    print("Tests not found for '"..testNames[1].."'")
-                end
-            else
-                print("Tests not found for '"..args.."'")
-            end
+            runFromNestedTest(args)
         end
     end
 end)
@@ -950,6 +982,7 @@ local function ReloadMods()
             else
                 print("Testing Mod failed to re-register '"..key.."' tests because the mod is disabled")
             end
+            print(json.encode(registeredTests["aSack"]))
         end
         shouldReload = false
     else
