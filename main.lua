@@ -101,19 +101,14 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
         if results then
             for _, newStep in pairs(results) do
                 local copiedStep = helpers.DeepCopyTable(newStep)
-                if not copiedStep._id then
-                    copiedStep._id = test.name
-                    lastPath = name.." "..test.name
-                else
-                    lastPath = name.." "..test.name.." "..newStep._id
-                end
+                lastPath = name.." "..test.name
                 applyTestPathToStep(copiedStep, lastPath)
                 table.insert(finalSteps, copiedStep)
             end
         end
 
         if index < #tests then
-            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER, _id = test.name, path = lastPath })
+            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER, path = lastPath })
         end
     end
 
@@ -677,7 +672,7 @@ local function createRunChain(steps, next)
 
         nextStep = function()
             currentStep = {
-                _id = step.path:match("(%S+)$"),
+                name = step.path:match("(%S+)$"),
                 path = step.path
             }
             TestSteps[step.action](step or {}, tempNextStep)
