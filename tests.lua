@@ -557,7 +557,8 @@ Test.RegisterTests("outerTest", {
                         action = "EXECUTE_LUA",
                         code = function() print('running innerInnerTest') end
                     }
-                }
+                },
+                instructions = "innerInnerTest"
             },
             {
                 name = "innerInnerTestTwo",
@@ -566,7 +567,8 @@ Test.RegisterTests("outerTest", {
                         action = "EXECUTE_LUA",
                         code = function() print('running innerInnerTestTwo') end
                     }
-                }
+                },
+                instructions = "innerInnerTestTwo"
             },
             {
                 name = "innerInnerTestThree",
@@ -575,8 +577,10 @@ Test.RegisterTests("outerTest", {
                         action = "EXECUTE_LUA",
                         code = function() print('running innerInnerTestThree') end
                     }
-                }
+                },
+                instructions = "innerInnerTestThree"
             }
-        }
+        },
+        instructions = "poggie inner test"
     }
 })

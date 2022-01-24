@@ -67,12 +67,16 @@ function Test.RegisterTest(name, steps, mod)
     return steps
 end
 
-local function applyTestPathToStep(step, path)
+local function applyTestPathToStep(step, path, instructions)
     step.path = path
+
+    if not step.instructions then
+        step.instructions = instructions
+    end
 
     if step.steps then
         for _, s in pairs(step.steps) do
-            applyTestPathToStep(s, path)
+            applyTestPathToStep(s, path, step.instructions)
         end
     end
 end
@@ -90,7 +94,7 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
             local newSteps = {}
             for _, newStep in pairs(test.steps) do
                 local copiedStep = helpers.DeepCopyTable(newStep)
-                applyTestPathToStep(copiedStep, test.name)
+                applyTestPathToStep(copiedStep, test.name, test.instructions)
                 table.insert(newSteps, copiedStep)
             end
             results = Test.RegisterTest(test.name, newSteps, mod)
@@ -102,13 +106,17 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
             for _, newStep in pairs(results) do
                 local copiedStep = helpers.DeepCopyTable(newStep)
                 lastPath = name.." "..test.name
-                applyTestPathToStep(copiedStep, lastPath)
+                applyTestPathToStep(copiedStep, lastPath, test.instructions)
                 table.insert(finalSteps, copiedStep)
             end
         end
 
         if index < #tests then
-            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER, path = lastPath })
+            if awaitStep then
+                awaitStep.path = lastPath
+                awaitStep.instructions = test.instructions
+            end
+            table.insert(finalSteps, awaitStep or { action = TestActions.WAIT_FOR_KEY, key = Keyboard.KEY_ENTER, path = lastPath, instructions = test.instructions })
         end
     end
 
@@ -673,7 +681,8 @@ local function createRunChain(steps, next)
         nextStep = function()
             currentStep = {
                 name = step.path:match("(%S+)$"),
-                path = step.path
+                path = step.path,
+                instructions = step.instructions
             }
             TestSteps[step.action](step or {}, tempNextStep)
         end
@@ -912,6 +921,23 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
         end
         font:DrawString("Hit "..(keyName or "the specified key").." to continue the tests...", position.X, position.Y, color, boxSize, true)
         position = position - Vector(0, 15)
+    end
+end)
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+    local position = Vector(Isaac.GetScreenWidth() / 3, 20)
+    local color = KColor(1, 1, 1, 1)
+    local boxSize = math.floor(Isaac.GetScreenWidth() / 3)
+    local lineHeight = 20
+
+    if currentStep then
+        if currentStep.name then
+            font:DrawString(currentStep.name, position.X, position.Y, color, boxSize, true)
+        end
+
+        if currentStep.instructions then
+            font:DrawString(currentStep.instructions, position.X, position.Y + lineHeight, color, boxSize, true)
+        end
     end
 end)
 
