@@ -52,8 +52,7 @@ TestActions = {
     CHARGE_ACTIVE_ITEM = "CHARGE_ACTIVE_ITEM",
     DISCHARGE_ACTIVE_ITEM = "DISCHARGE_ACTIVE_ITEM",
     GO_TO_DOOR = "GO_TO_DOOR",
-    CLEAR_SEED = "CLEAR_SEED",
-    BLANK = "BLANK"
+    CLEAR_SEED = "CLEAR_SEED"
 }
 
 function Test.RegisterTest(name, steps, mod)
@@ -82,12 +81,19 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
     local finalSteps = {}
 
     for index, test in pairs(tests) do
+        local multipleTests = helpers.IncludesMultipleTests(test.steps)
         local results
 
-        if helpers.IncludesMultipleTests(test.steps) then
+        if multipleTests then
             results = Test.RegisterTests(test.name, test.steps, mod, awaitStep)
         else
-            results = Test.RegisterTest(test.name, test.steps, mod)
+            local newSteps = {}
+            for _, newStep in pairs(test.steps) do
+                local copiedStep = helpers.DeepCopyTable(newStep)
+                applyTestPathToStep(copiedStep, test.name)
+                table.insert(newSteps, copiedStep)
+            end
+            results = Test.RegisterTest(test.name, newSteps, mod)
         end
 
         local lastPath
@@ -600,10 +606,6 @@ local goToDoor = function(arguments, next)
     delay(0, next)
 end
 
-local function blank(_, next)
-    delay(0, next)
-end
-
 local TestSteps = {
     [TestActions.MOVE_LEFT] = moveLeft,
     [TestActions.MOVE_UP] = moveUp,
@@ -641,8 +643,7 @@ local TestSteps = {
     [TestActions.CHARGE_ACTIVE_ITEM] = chargeActiveItem,
     [TestActions.DISCHARGE_ACTIVE_ITEM] = dischargeActiveItem,
     [TestActions.GO_TO_DOOR] = goToDoor,
-    [TestActions.CLEAR_SEED] = clearSeed,
-    [TestActions.BLANK] = blank
+    [TestActions.CLEAR_SEED] = clearSeed
 }
 
 -- INSTRUCTIONS END
@@ -852,7 +853,6 @@ TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHo
 end)
 
 local runFromNestedTest = function(args)
-    print("nested step: "..args)
     local testNames = {}
     for substring in args:gmatch("%S+") do
         table.insert(testNames, substring)
@@ -870,9 +870,6 @@ local runFromNestedTest = function(args)
 
         if testSuite then
             local path = table.concat(testNames, " ")
-
-            print('searching for path: '..path)
-
             local firstStepIndex = helpers.FindTableEntryIndexByProperty(testSuite, { path = path })
 
             if not firstStepIndex then
@@ -902,7 +899,6 @@ end
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
 
     if currentStep and (not Game():IsPaused()) and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
-        print(currentStep.path)
         runFromNestedTest(currentStep.path)
     end
 
@@ -982,7 +978,6 @@ local function ReloadMods()
             else
                 print("Testing Mod failed to re-register '"..key.."' tests because the mod is disabled")
             end
-            print(json.encode(registeredTests["aSack"]))
         end
         shouldReload = false
     else
