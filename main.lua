@@ -913,12 +913,23 @@ local runFromNestedTest = function(args)
     end
 end
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+local waitForKeyPressed = false
 
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     if currentStep and (not Game():IsPaused()) and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
         runFromNestedTest(currentStep.path)
     end
 
+    local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
+
+    if waitForKeyTest and Input.IsButtonTriggered(waitForKeyTest.key, 0) then
+        waitForKeyPressed = true
+    else
+        waitForKeyPressed = false
+    end
+end)
+
+TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
     local color = KColor(1, 1, 1, 1)
     local boxSize = math.floor(Isaac.GetScreenWidth() / 2)
@@ -982,7 +993,7 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
     local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
 
-    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
+    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and waitForKeyPressed) then
         helpers.RemoveElementFromTable(shouldActions, waitForKeyTest)
 
         if delayConfig.next then
