@@ -55,18 +55,6 @@ TestActions = {
     CLEAR_SEED = "CLEAR_SEED"
 }
 
-function Test.RegisterTest(name, steps, mod)
-    registeredTests[name] = steps
-
-    if mod and not registeredMods[mod] then
-        registeredMods[mod] = true
-
-        TestingMod:SaveData(json.encode(registeredMods))
-    end
-
-    return steps
-end
-
 local function applyTestPathToStep(step, path, instructions)
     step.path = path
 
@@ -81,7 +69,33 @@ local function applyTestPathToStep(step, path, instructions)
     end
 end
 
-function Test.RegisterTests(name, tests, mod, awaitStep)
+local function registerTest(name, steps, mod, instructions, applyPath)
+    local newSteps = {}
+    if applyPath then
+        for _, newStep in pairs(steps) do
+            local copiedStep = helpers.DeepCopyTable(newStep)
+            applyTestPathToStep(copiedStep, name, instructions)
+            table.insert(newSteps, copiedStep)
+        end
+    else
+        newSteps = steps
+    end
+    registeredTests[name] = newSteps
+
+    if mod and not registeredMods[mod] then
+        registeredMods[mod] = true
+
+        TestingMod:SaveData(json.encode(registeredMods))
+    end
+
+    return newSteps
+end
+
+function Test.RegisterTest(name, steps, mod, instructions)
+    return registerTest(name, steps, mod, instructions, true)
+end
+
+local function registerTests(name, tests, mod, awaitStep, applyPathTopLevel)
     local finalSteps = {}
 
     for index, test in pairs(tests) do
@@ -89,15 +103,9 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
         local results
 
         if multipleTests then
-            results = Test.RegisterTests(test.name, test.steps, mod, awaitStep)
+            results = registerTests(test.name, test.steps, mod, awaitStep, false)
         else
-            local newSteps = {}
-            for _, newStep in pairs(test.steps) do
-                local copiedStep = helpers.DeepCopyTable(newStep)
-                applyTestPathToStep(copiedStep, test.name, test.instructions)
-                table.insert(newSteps, copiedStep)
-            end
-            results = Test.RegisterTest(test.name, newSteps, mod)
+            results = registerTest(test.name, test.steps, mod, test.instructions, true)
         end
 
         local lastPath
@@ -110,7 +118,7 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
                 if copiedStep.path then
                     local cutPath = string.match(copiedStep.path, '%s(.*)')
                     if cutPath then
-                        lastPath = lastPath.." "..cutPath 
+                        lastPath = lastPath.." "..cutPath
                     end
                 end
 
@@ -128,9 +136,13 @@ function Test.RegisterTests(name, tests, mod, awaitStep)
         end
     end
 
-    Test.RegisterTest(name, finalSteps, mod)
+    registerTest(name, finalSteps, mod, applyPathTopLevel)
 
     return finalSteps
+end
+
+function Test.RegisterTests(name, tests, mod, awaitStep)
+    return registerTests(name, tests, mod, awaitStep, true)
 end
 
 local isStopped = true
@@ -1037,3 +1049,5 @@ local function ReloadMods()
 end
 
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
+
+print(json.encode(registeredTests['movement']))
