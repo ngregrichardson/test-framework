@@ -592,44 +592,33 @@ local goToDoor = function(arguments, next)
     local player = helpers.GetPlayer(arguments)
     local room = Game():GetRoom()
 
-    if arguments.slot then
-        local slotValue = helpers.GetValue(arguments.slot, arguments)
-        local door = room:GetDoor(slotValue)
+    local slot = arguments.slot
 
-        if door then
-            if not door:IsOpen() then
-                door:SetLocked(false)
-                door:Open()
-
-                delay(12, function()
-                    player.Position = room:GetDoorSlotPosition(slotValue)
-                    delay(0, next)
-                end, true)
-            else
-                player.Position = room:GetDoorSlotPosition(slotValue)
-            end
-
-            return
-        end
-    else
+    if not slot then
         for i = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
             local door = room:GetDoor(i)
 
             if door and door.TargetRoomType == (helpers.GetValue(arguments.type, arguments, RoomType.ROOM_DEFAULT)) then
-                if not door:IsOpen() then
-                    door:Open()
-
-                    delay(12, function()
-                        player.Position = room:GetDoorSlotPosition(i)
-                        delay(0, next)
-                    end, true)
-
-                    return
-                else
-                    player.Position = room:GetDoorSlotPosition(i)
-                end
+                slot = i
+                
             end
         end
+    end
+
+    local door = room:GetDoor(slot)
+
+    if not door:IsOpen() then
+        door:SetLocked(false)
+        door:Open()
+
+        delay(12, function()
+            player.Position = room:GetDoorSlotPosition(slot)
+            delay(0, next)
+        end, true)
+
+        return
+    else
+        player.Position = room:GetDoorSlotPosition(slot)
     end
 
     delay(0, next)
@@ -700,6 +689,13 @@ local function createRunChain(steps, next)
             goto continue
         end
 
+        local nextStepName
+        local waitingForNextStep = steps[i + 1]
+
+        if waitingForNextStep and waitingForNextStep.path then
+            nextStepName = waitingForNextStep.path:match("(%S+)$")
+        end
+
         if i == #steps and step then
             step.async = nil
         end
@@ -708,7 +704,8 @@ local function createRunChain(steps, next)
             currentStep = {
                 name = step.path:match("(%S+)$"),
                 path = step.path,
-                instructions = step.instructions
+                instructions = step.instructions,
+                nextStepName = nextStepName
             }
             TestSteps[step.action](step or {}, tempNextStep)
         end
@@ -925,19 +922,9 @@ local runFromNestedTest = function(args)
     end
 end
 
-local waitForKeyPressed = false
-
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     if currentStep and (not Game():IsPaused()) and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
         runFromNestedTest(currentStep.path)
-    end
-
-    local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
-
-    if waitForKeyTest and Input.IsButtonTriggered(waitForKeyTest.key, 0) then
-        waitForKeyPressed = true
-    else
-        waitForKeyPressed = false
     end
 end)
 
@@ -955,7 +942,12 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
                 break
             end
         end
-        font:DrawString("Hit "..(keyName or "the specified key").." to continue the tests...", position.X, position.Y, color, boxSize, true)
+
+        local moveOnText = " to continue the tests..."
+        if currentStep.nextStepName then
+            moveOnText = " to continue onto "..currentStep.nextStepName.."..."
+        end
+        font:DrawString("Hit "..(keyName or "the specified key")..moveOnText, position.X, position.Y, color, boxSize, true)
         position = position - Vector(0, 15)
     end
 end)
@@ -1005,7 +997,7 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
     local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
 
-    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and waitForKeyPressed) then
+    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
         helpers.RemoveElementFromTable(shouldActions, waitForKeyTest)
 
         if delayConfig.next then
@@ -1049,5 +1041,3 @@ local function ReloadMods()
 end
 
 TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
-
-print(json.encode(registeredTests['movement']))
