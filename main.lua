@@ -6,7 +6,7 @@ local json = include("json")
 local helpers = include("helpers")
 
 local defaultMcmOptions = {
-    instructionsTransparency = 0
+    instructionsOpacity = 100
 }
 
 local registeredMods = {}
@@ -970,12 +970,12 @@ TestFramework:AddCallback(ModCallbacks.MC_POST_RENDER, function()
         end
 
         if currentStep.instructions then
-            local instructionsTransparency = 1
+            local instructionsOpacity = 1
 
-            if TestFramework.mcmOptions and TestFramework.mcmOptions.instructionsTransparency then
-                instructionsTransparency = 1 - (TestFramework.mcmOptions.instructionsTransparency / 100)
+            if TestFramework.mcmOptions and TestFramework.mcmOptions.instructionsOpacity then
+                instructionsOpacity = TestFramework.mcmOptions.instructionsOpacity / 100
             end
-            local instructionsColor = KColor(1, 1, 1, instructionsTransparency)
+            local instructionsColor = KColor(1, 1, 1, instructionsOpacity)
 
             local instructions = currentStep.instructions
             if type(currentStep.instructions) ~= "table" then

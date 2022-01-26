@@ -1,6 +1,6 @@
 local helpers = include("helpers")
 
-local MenuName = "T.E.S.T Framework"
+local MenuName = "T.E.S.T. Framework"
 local SubMenuName = "Instructions"
 
 local function InitializeMCM(defaultMcmOptions)
@@ -15,28 +15,28 @@ local function InitializeMCM(defaultMcmOptions)
 	end
 	local mcmOptions = TestFramework.mcmOptions
 	if ModConfigMenu then
-		ModConfigMenu.RemoveSetting(MenuName, SubMenuName, "InstructionsTransparency")
+		ModConfigMenu.RemoveSetting(MenuName, SubMenuName, "InstructionsOpacity")
 
 		ModConfigMenu.AddSetting(
 			MenuName,
 			SubMenuName,
 			{
-				Attribute = "InstructionsTransparency",
+				Attribute = "InstructionsOpacity",
 				Type = ModConfigMenu.OptionType.NUMBER,
 				CurrentSetting = function()
-					return mcmOptions.instructionsTransparency
+					return mcmOptions.instructionsOpacity
 				end,
 				Minimum = 0,
 				Maximum = 100,
 				ModifyBy = 5,
 				Display = function()
-					return "Instructions Transparency: " .. mcmOptions.instructionsTransparency .. "%"
+					return "Instructions Opacity: " .. mcmOptions.instructionsOpacity .. "%"
 				end,
 				OnChange = function(currentNum)
-					mcmOptions.instructionsTransparency = currentNum
-					helpers.SaveKey("mcmOptions.instructionsTransparency", currentNum)
+					mcmOptions.instructionsOpacity = currentNum
+					helpers.SaveKey("mcmOptions.instructionsOpacity", currentNum)
 				end,
-				Info = {"The transparency level of Test instructions (Default 0%)"}
+				Info = {"The opacity of current test's instructions (Default 100%)"}
 			}
 		)
 	end
