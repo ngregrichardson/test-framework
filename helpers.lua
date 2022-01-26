@@ -1,3 +1,4 @@
+local json = include("json")
 local H = {}
 
 -- TESTING HELPERS
@@ -114,6 +115,34 @@ end
 
 function H.GetPlayer(arguments)
     return Isaac.GetPlayer(H.GetPlayerIndex(arguments))
+end
+
+function H.SetNestedValue(t, key, value)
+    if t and type(t) == "table" then
+        if key:find("%.") then
+            local levelKey, nextLevelKey = key:match('([^.]+)%.(.*)')
+            if t[levelKey] == nil and nextLevelKey then
+                t[levelKey] = {}
+            end
+            return H.SetNestedValue(t[levelKey], nextLevelKey, value)
+        else
+            t[key] = value
+        end
+    end
+end
+
+function H.SaveKey(key, value)
+    local savedData = {}
+    if TestFramework:HasData() then
+        savedData = json.decode(TestFramework:LoadData())
+    end
+    H.SetNestedValue(savedData, key, value)
+    print(json.encode(savedData))
+    TestFramework:SaveData(json.encode(savedData))
+end
+
+function H.IsPaused()
+    return Game():IsPaused() or (ModConfigMenu and ModConfigMenu.IsVisible)
 end
 
 return H

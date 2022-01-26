@@ -1,16 +1,22 @@
-TestingMod = RegisterMod("Testing Framework", 1)
+TestFramework = RegisterMod("Testing Framework", 1)
 local font = Font()
 font:Load("font/pftempestasevencondensed.fnt")
 
 local json = include("json")
 local helpers = include("helpers")
 
+local defaultMcmOptions = {
+    instructionsTransparency = 0
+}
+
 local registeredMods = {}
 
 local registeredTests = {}
 
-if TestingMod:HasData() then
-    registeredMods = json.decode(TestingMod:LoadData())
+if TestFramework:HasData() then
+    local savedData = json.decode(TestFramework:LoadData())
+    registeredMods = savedData.registeredMods or {}
+    TestFramework.mcmOptions = savedData.mcmOptions or helpers.DeepCopyTable(defaultMcmOptions)
 end
 
 Test = {}
@@ -85,7 +91,7 @@ local function registerTest(name, steps, mod, instructions, applyPath)
     if mod and not registeredMods[mod] then
         registeredMods[mod] = true
 
-        TestingMod:SaveData(json.encode(registeredMods))
+        helpers.SaveKey("registeredMods", registeredMods)
     end
 
     return newSteps
@@ -732,7 +738,7 @@ local function GetTestFromAction(action, player)
     return helpers.FindTableEntryByProperty(shouldActions, { action = action, playerIndex = truePlayerIndex })
 end
 
-TestingMod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
+TestFramework:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, inputHook, buttonAction)
     if entity ~= nil and entity:ToPlayer() then
         local player = entity:ToPlayer()
 
@@ -891,12 +897,12 @@ local runFromNestedTest = function(args)
         local firstTestName = testNames[1]
         local testSuite = registeredTests[firstTestName]
 
-        if #testNames == 1 then
-            run(testSuite)
-            return
-        end
-
         if testSuite then
+            if #testNames == 1 then
+                run(testSuite)
+                return
+            end
+
             local path = table.concat(testNames, " ")
             local firstStepIndex = helpers.FindTableEntryIndexByPropertyStartsWith(testSuite, { path = path })
 
@@ -922,13 +928,13 @@ local runFromNestedTest = function(args)
     end
 end
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
-    if currentStep and (not Game():IsPaused()) and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
+TestFramework:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+    if currentStep and not helpers.IsPaused() and Input.IsButtonTriggered(Keyboard.KEY_B, 0) then
         runFromNestedTest(currentStep.path)
     end
 end)
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+TestFramework:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     local position = Vector(Isaac.GetScreenWidth() / 4, Isaac.GetScreenHeight() - 20)
     local color = KColor(1, 1, 1, 1)
     local boxSize = math.floor(Isaac.GetScreenWidth() / 2)
@@ -952,7 +958,7 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     end
 end)
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+TestFramework:AddCallback(ModCallbacks.MC_POST_RENDER, function()
     local position = Vector(Isaac.GetScreenWidth() / 3, 5)
     local color = KColor(1, 1, 1, 1)
     local boxSize = math.floor(Isaac.GetScreenWidth() / 3)
@@ -964,19 +970,26 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
         end
 
         if currentStep.instructions then
+            local instructionsTransparency = 1
+
+            if TestFramework.mcmOptions and TestFramework.mcmOptions.instructionsTransparency then
+                instructionsTransparency = 1 - (TestFramework.mcmOptions.instructionsTransparency / 100)
+            end
+            local instructionsColor = KColor(1, 1, 1, instructionsTransparency)
+
             local instructions = currentStep.instructions
             if type(currentStep.instructions) ~= "table" then
                 instructions = { currentStep.instructions }
             end
 
             for i, instruction in pairs(instructions) do
-                font:DrawString(i..". "..instruction, position.X, position.Y + (lineHeight) * i + 5, color, boxSize, true)
+                font:DrawString(i..". "..instruction, position.X, position.Y + (lineHeight) * i + 5, instructionsColor, boxSize, true)
             end
         end
     end
 end)
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+TestFramework:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     -- Decrement frames and remove completed actions
     for i = 1, #shouldActions do
         local test = shouldActions[i]
@@ -997,7 +1010,7 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
     local waitForKeyTest = helpers.FindTableEntryByProperty(shouldActions, { action = TestActions.WAIT_FOR_KEY })
 
-    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
+    if (not waitForKeyTest and delayConfig.frames <= 0) or (waitForKeyTest and not helpers.IsPaused() and Input.IsButtonPressed(waitForKeyTest.key, 0)) then
         helpers.RemoveElementFromTable(shouldActions, waitForKeyTest)
 
         if delayConfig.next then
@@ -1010,7 +1023,7 @@ TestingMod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     end
 end)
 
-TestingMod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
+TestFramework:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, command, args)
     if command:lower() == "test" and args then
         if args:lower() == "stop" then
             stop()
@@ -1036,8 +1049,10 @@ local function ReloadMods()
         end
         shouldReload = false
     else
-        TestingMod:RemoveCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
+        TestFramework:RemoveCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
     end
 end
 
-TestingMod:AddCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
+TestFramework:AddCallback(ModCallbacks.MC_POST_RENDER, ReloadMods)
+
+include("modConfigMenu")(defaultMcmOptions)
