@@ -137,7 +137,6 @@ function H.SaveKey(key, value)
         savedData = json.decode(TestFramework:LoadData())
     end
     H.SetNestedValue(savedData, key, value)
-    print(json.encode(savedData))
     TestFramework:SaveData(json.encode(savedData))
 end
 
